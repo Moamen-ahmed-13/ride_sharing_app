@@ -1,0 +1,33 @@
+buildscript {
+    ext.kotlin_version = '2.2.21'
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.6.1'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.21'
+        classpath 'com.google.gms:google-services:4.4.2'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+// تعديل مسار build ليكون مشترك لكل الوحدات (اختياري)
+rootProject.buildDir = "../build"
+
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+    project.evaluationDependsOn(":app")
+}
+
+// مهمة التنظيف
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}
