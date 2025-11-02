@@ -5,12 +5,10 @@ import 'dart:math';
 import 'package:ride_sharing_app/utils/constants/app_colors.dart';
 
 class Helpers {
-  // Format currency
   static String formatCurrency(double amount) {
     return '\$${amount.toStringAsFixed(2)}';
   }
   
-  // Format distance
   static String formatDistance(double distanceInKm) {
     if (distanceInKm < 1) {
       return '${(distanceInKm * 1000).toStringAsFixed(0)} m';
@@ -18,7 +16,6 @@ class Helpers {
     return '${distanceInKm.toStringAsFixed(1)} km';
   }
   
-  // Format duration
   static String formatDuration(int minutes) {
     if (minutes < 60) {
       return '$minutes min';
@@ -28,29 +25,25 @@ class Helpers {
     return '${hours}h ${mins}min';
   }
   
-  // Format date
   static String formatDate(DateTime date) {
     return DateFormat('MMM dd, yyyy').format(date);
   }
   
-  // Format date with time
   static String formatDateTime(DateTime date) {
     return DateFormat('MMM dd, yyyy • HH:mm').format(date);
   }
   
-  // Format time only
   static String formatTime(DateTime date) {
     return DateFormat('HH:mm').format(date);
   }
   
-  // Calculate distance between two coordinates (Haversine formula)
   static double calculateDistance(
     double lat1,
     double lon1,
     double lat2,
     double lon2,
   ) {
-    const double earthRadius = 6371; // km
+    const double earthRadius = 6371;
     
     double dLat = _toRadians(lat2 - lat1);
     double dLon = _toRadians(lon2 - lon1);
@@ -68,7 +61,6 @@ class Helpers {
     return degree * pi / 180;
   }
   
-  // Get time ago (e.g., "2 hours ago", "5 minutes ago")
   static String getTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
@@ -88,7 +80,6 @@ class Helpers {
     }
   }
   
-  // Get ride status color
   static Color getRideStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
@@ -106,7 +97,6 @@ class Helpers {
     }
   }
   
-  // Get ride status icon
   static IconData getRideStatusIcon(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
@@ -124,18 +114,16 @@ class Helpers {
     }
   }
   
-  // Generate random color for avatar
   static Color getRandomColor(String seed) {
     final random = Random(seed.hashCode);
     return Color.fromRGBO(
-      random.nextInt(200) + 55, // 55-255
+      random.nextInt(200) + 55, 
       random.nextInt(200) + 55,
       random.nextInt(200) + 55,
       1,
     );
   }
   
-  // Show success snackbar
   static void showSuccessSnackbar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -155,7 +143,6 @@ class Helpers {
     );
   }
   
-  // Show error snackbar
   static void showErrorSnackbar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -175,7 +162,6 @@ class Helpers {
     );
   }
   
-  // Show info snackbar
   static void showInfoSnackbar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -195,7 +181,6 @@ class Helpers {
     );
   }
   
-  // Show loading dialog
   static void showLoadingDialog(BuildContext context, {String? message}) {
     showDialog(
       context: context,
@@ -218,17 +203,13 @@ class Helpers {
     );
   }
   
-  // Hide loading dialog
   static void hideLoadingDialog(BuildContext context) {
     Navigator.of(context, rootNavigator: true).pop();
   }
   
-  // Format phone number
   static String formatPhoneNumber(String phone) {
-    // Remove all non-numeric characters
     String cleaned = phone.replaceAll(RegExp(r'[^0-9]'), '');
     
-    // Format based on length
     if (cleaned.length == 10) {
       return '(${cleaned.substring(0, 3)}) ${cleaned.substring(3, 6)}-${cleaned.substring(6)}';
     } else if (cleaned.length == 11 && cleaned.startsWith('1')) {
@@ -238,18 +219,15 @@ class Helpers {
     return phone;
   }
   
-  // Truncate text
   static String truncateText(String text, int maxLength) {
     if (text.length <= maxLength) return text;
     return '${text.substring(0, maxLength)}...';
   }
   
-  // Calculate fare (can be customized)
   static double calculateFare(double distanceInKm, {double baseRate = 30.0, double perKmRate = 15.0}) {
     return baseRate + (distanceInKm * perKmRate);
   }
   
-  // Validate coordinates
   static bool isValidCoordinate(double? lat, double? lng) {
     if (lat == null || lng == null) return false;
     return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;

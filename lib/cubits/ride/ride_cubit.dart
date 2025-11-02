@@ -1,445 +1,189 @@
-// import 'dart:async';
-
-// import 'package:flutter_bloc/flutter_bloc.dart';
-// import 'package:ride_sharing_app/features/common/data/datasources/ride_remote_datasource.dart';
-// import 'package:ride_sharing_app/models/location_model.dart';
-// import 'package:ride_sharing_app/cubits/ride/ride_state.dart';
-// import 'package:ride_sharing_app/features/rider/data/models/ride_model.dart';
-
-// class RideCubit extends Cubit<RideState> {
-//   final RideRemoteDatasource _rideRemoteDatasource;
-//   StreamSubscription? _rideSubscription;
-//   StreamSubscription? _availableRidesSubscription;
-
-//   RideCubit(this._rideRemoteDatasource) : super(RideInitial());
-
-//   Future createRide({
-//     required String riderId,
-//     required String riderName,
-//     required LocationModel pickupLocation,
-//     required LocationModel destinationLocation,
-//     required double distance,
-//     required double suggestedPrice,
-//   }) async {
-//     emit(RideLoading());
-//     try {
-//       final ride = RideModel(
-//         id: '',
-//         riderId: riderId,
-//         riderName: riderName,
-//         pickupLocation: pickupLocation,
-//         destinationLocation: destinationLocation,
-//         estimatedDistance: distance,
-//         suggestedPrice: suggestedPrice,
-//         status: RideStatus.waitingForBids,
-//         createdAt: DateTime.now(),
-//       );
-//       final createdRide = await _rideRemoteDatasource.createRide(ride);
-//       emit(RideCreated(createdRide));
-//       listenToRideUpdates(createdRide.id);
-//     } catch (e) {
-//       emit(RideError("Failed to create ride: ${e.toString()}"));
-//     }
-//   }
-
-//   void listenToRideUpdates(String rideId) {
-//     _rideSubscription?.cancel();
-//     _rideSubscription = _rideRemoteDatasource.getRideById(rideId).listen((ride) {
-//       if (ride != null) {
-//         if (ride.status==RideStatus.completed||ride.status==RideStatus.cancelled) {
-//           emit(RideCompleted(ride));
-//           _rideSubscription?.cancel();
-//         } else {
-//           emit(RideUpdated(ride));
-//         }
-//       }
-//     }, onError: (e) {
-//       emit(RideError("Failed to listen to ride updates: ${e.toString()}"));
-//     },
-//     );
-//   }
-
-//   void listenToAvailableRides() {
-//     _availableRidesSubscription?.cancel();
-//     _availableRidesSubscription =
-//         _rideRemoteDatasource.getRides().listen((rides) {
-//       emit(AvailableRidesLoaded(rides));
-//     }, onError: (e) {
-//       emit(RideError("Failed to listen to available rides: ${e.toString()}"));
-//     });
-//   }
-
-//   Future acceptBid(String rideId, String driverId) async {
-//     try {
-//       await _rideRemoteDatasource.acceptBid(rideId, driverId);
-//     } catch (e) {
-//       emit(RideError("Failed to accept bid: ${e.toString()}"));
-//     }
-//   }
-
-//   Future updateRideStatus(String rideId, RideStatus status) async {
-//     try {
-//       await _rideRemoteDatasource.updateRideStatus(rideId, status);
-//     } catch (e) {
-//       emit(RideError("Failed to update ride status: ${e.toString()}"));
-//     }
-//   }
-
-//   Future cancelRide(String rideId) async {
-//     try {
-//       await _rideRemoteDatasource.updateRideStatus(rideId, RideStatus.cancelled);
-//     } catch (e) {
-//       emit(RideError("Failed to cancel ride: ${e.toString()}"));
-//     }
-//   }
-
-//   void listenToDriverActiveRides(String driverId) {
-//     _rideSubscription?.cancel();
-//     _rideSubscription =
-//         _rideRemoteDatasource.getDriverActiveRides(driverId).listen((rides) {
-//       if (rides.isNotEmpty) {
-//         emit(ActiveRidesLoaded(rides.first));
-//       }else{
-//         emit(RideInitial());
-//       }
-//     }, onError: (e) {
-//       emit(RideError("Failed to listen to driver active rides: ${e.toString()}"));
-//     });
-//   }
-
-//   void listenToRiderActiveRides(String riderId) {
-//     _rideSubscription?.cancel();
-//     _rideSubscription =
-//         _rideRemoteDatasource.getRiderActiveRides(riderId).listen((rides) {
-//       if (rides.isNotEmpty) {
-//         emit(ActiveRidesLoaded(rides.first));
-//       }else{
-//         emit(RideInitial());
-//       }
-//     }, onError: (e) {
-//       emit(RideError("Failed to listen to rider active rides: ${e.toString()}"));
-//     });
-//   }
-
-//   @override
-//   Future<void> close() {
-//     _rideSubscription?.cancel();
-//     _availableRidesSubscription?.cancel();
-//     return super.close();
-//   }
-// }
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:ride_sharing_app/models/location_model.dart';
+import 'package:ride_sharing_app/cubits/notification/notification_cubit.dart';
+import 'package:ride_sharing_app/cubits/ride/ride_state.dart';
 import 'package:ride_sharing_app/models/ride_model.dart';
-import 'package:ride_sharing_app/models/user_model.dart';
-import 'package:ride_sharing_app/services/fcm_service.dart';
-import 'package:ride_sharing_app/services/location_service.dart';
-import 'package:ride_sharing_app/services/maps_service.dart';
-import 'ride_state.dart';
+import 'package:ride_sharing_app/services/firebase_database_service.dart';
 
-class RideCubit extends Cubit<RideState> {
-  final FirebaseDatabase _database = FirebaseDatabase.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final LocationService _locationService = LocationService();
-  final MapsService _mapsService = MapsService();
-  final FCMService _fcmService = FCMService();
-  
-  StreamSubscription? _rideSubscription;
-  String? _currentRideId;
+class RideCubitWithNotifications extends Cubit<RideState> {
+  final DatabaseService _dbService = DatabaseService();
+  final NotificationCubit _notificationCubit;
 
-  RideCubit() : super(RideInitial());
+  StreamSubscription<List<Ride>>? _ridesSubscription;
+  StreamSubscription<Ride?>? _currentRideSubscription;
+String? _watchingRideId;
+  RideCubitWithNotifications(this._notificationCubit)
+    : super(RideInitial());
 
-  // Search for nearby available drivers
-  Future<void> searchNearbyDrivers(LatLng userLocation) async {
-    try {
-      emit(RideLoading());
-
-      // Get all available drivers
-      DatabaseEvent event = await _database
-          .ref('users')
-          .orderByChild('role')
-          .equalTo('driver')
-          .once();
-
-      if (event.snapshot.value == null) {
-        emit(RideSearchingDrivers([]));
-        return;
-      }
-
-      Map<dynamic, dynamic> driversMap = event.snapshot.value as Map;
-      List<UserModel> nearbyDrivers = [];
-
-      // Filter drivers who are available and nearby (within 5km)
-      for (var entry in driversMap.entries) {
-        Map<String, dynamic> driverData = 
-            Map<String, dynamic>.from(entry.value as Map);
-        
-        if (driverData['isAvailable'] == true) {
-          // Get driver's location
-          DatabaseEvent locEvent = await _database
-              .ref('locations/${entry.key}')
-              .once();
+  void loadNearbyRides(double lat, double lng, {double radiusKm = 5.0}) {
+       print('📍 Loading nearby rides...');
+    emit(RideLoading());
+    _ridesSubscription?.cancel();
+    _ridesSubscription = _dbService
+        .getNearbyRides(lat, lng, radiusKm)
+        .listen(
+          (rides) {
+            emit(RideListLoaded(rides),);
+            print('Found ${rides.length} nearby rides.');
+          },
+          onError: (error) {        print('❌ Error loading nearby rides: $error');
           
-          if (locEvent.snapshot.value != null) {
-            Map<String, dynamic> locationData = 
-                Map<String, dynamic>.from(locEvent.snapshot.value as Map);
-            
-            double distance = _locationService.calculateDistance(
-              userLocation.latitude,
-              userLocation.longitude,
-              locationData['latitude'],
-              locationData['longitude'],
-            );
-
-            // If driver is within 5km
-            if (distance <= 5.0) {
-              nearbyDrivers.add(UserModel.fromMap(driverData));
-            }
-          }
-        }
-      }
-
-      emit(RideSearchingDrivers(nearbyDrivers));
-    } catch (e) {
-      emit(RideError('Failed to search drivers: ${e.toString()}'));
-    }
+            emit(RideError(error.toString()));
+          },
+        );
   }
 
-  // Request a ride
-  Future<void> requestRide({
-    required LatLng pickupLocation,
-    required String pickupAddress,
-    required LatLng dropoffLocation,
-    required String dropoffAddress,
-  }) async {
+  Future<void> requestRide(Ride ride, String driverName) async {
     try {
-      emit(RideLoading());
-
-      String userId = _auth.currentUser!.uid;
-      
-      // Get directions and calculate fare
-      Map<String, dynamic>? directions = await _mapsService.getDirections(
-        pickupLocation,
-        dropoffLocation,
+      emit(RideRequesting());
+      await _dbService.createRide(ride);
+print('✅ Ride created with ID: ${ride.id}');
+      await _notificationCubit.sendRideRequestNotification(
+        driverId: 'broadcast', 
+        rideId: ride.id,
+        pickupLocation:
+            '${ride.startLat.toStringAsFixed(4)}, ${ride.startLng.toStringAsFixed(4)}',
+        fare: ride.fare?.toStringAsFixed(2) ?? '0.00',
       );
 
-      if (directions == null) {
-        emit(RideError('Failed to get directions'));
-        return;
-      }
-
-      double distanceInKm = directions['distance'] / 1000;
-      double fare = _mapsService.calculateFare(distanceInKm);
-      int estimatedTime = (directions['duration'] / 60).round(); // in minutes
-
-      // Create ride request
-      DatabaseReference rideRef = _database.ref('rides').push();
-      String rideId = rideRef.key!;
-
-      RideModel ride = RideModel(
-        rideId: rideId,
-        riderId: userId,
-        pickupLocation: LocationModel(
-          latitude: pickupLocation.latitude,
-          longitude: pickupLocation.longitude,
-          address: pickupAddress,
-        ),
-        dropoffLocation: LocationModel(
-          latitude: dropoffLocation.latitude,
-          longitude: dropoffLocation.longitude,
-          address: dropoffAddress,
-        ),
-        status: 'pending',
-        fare: fare,
-        timestamp: DateTime.now(),
-        distance: distanceInKm,
-        estimatedTime: estimatedTime,
-      );
-
-      await rideRef.set(ride.toMap());
-      
-      _currentRideId = rideId;
-      
-      // Listen to ride status changes
-      _listenToRideStatus(rideId);
-
-      // Notify nearby drivers
-      await _notifyNearbyDrivers(rideId, pickupLocation);
-
+      watchRide(ride.id);
       emit(RideRequested(ride));
     } catch (e) {
-      emit(RideError('Failed to request ride: ${e.toString()}'));
+      emit(RideError(e.toString()));
+      print('❌Error creating ride: $e');
     }
   }
 
-  // Listen to ride status changes
-  void _listenToRideStatus(String rideId) {
-    _rideSubscription?.cancel();
-    
-    _rideSubscription = _database
-        .ref('rides/$rideId')
-        .onValue
-        .listen((event) async {
-      if (event.snapshot.value != null) {
-        Map<String, dynamic> rideData = 
-            Map<String, dynamic>.from(event.snapshot.value as Map);
-        RideModel ride = RideModel.fromMap(rideData);
-
+  void watchRide(String rideId) {if (_watchingRideId == rideId && _currentRideSubscription != null) {
+        print('⚠️ Already watching ride: $rideId');
+        return;
+      }
+    print('👀 Watching ride with ID: $rideId');
+    _currentRideSubscription?.cancel();
+    _currentRideSubscription = _dbService.getRideStream(rideId).listen((ride) {
+      if (ride != null) {
+        print('🔄Ride updated: ${ride.id}');
         switch (ride.status) {
-          case 'accepted':
-            // Get driver info
-            UserModel? driver = await _getDriverInfo(ride.driverId!);
-            if (driver != null) {
-              emit(RideAccepted(ride, driver));
-            }
+          case 'requested':
+            emit(RideRequested(ride));
             break;
-          case 'started':
-            UserModel? driver = await _getDriverInfo(ride.driverId!);
-            if (driver != null) {
-              emit(RideStarted(ride, driver));
-            }
+          case 'accepted':
+            emit(RideAccepted(ride));
+            break;
+          case 'in_progress':
+            emit(RideInProgress(ride));
             break;
           case 'completed':
             emit(RideCompleted(ride));
-            _rideSubscription?.cancel();
-            _currentRideId = null;
+            _currentRideSubscription?.cancel();
             break;
           case 'cancelled':
-            emit(RideCancelled('Ride was cancelled'));
-            _rideSubscription?.cancel();
-            _currentRideId = null;
+            emit(RideCancelled());
+            _currentRideSubscription?.cancel();
             break;
         }
       }
+    }, onError: (error) {
+      emit(RideError(error.toString()));
+      print('❌Error watching ride: $error');
     });
   }
 
-  // Get driver information
-  Future<UserModel?> _getDriverInfo(String driverId) async {
+  Future<void> acceptRide(
+    String rideId,
+    String driverId,
+    String riderId,
+    String driverName,
+  ) async {
     try {
-      DatabaseEvent event = await _database.ref('users/$driverId').once();
-      if (event.snapshot.value != null) {
-        Map<String, dynamic> driverData = 
-            Map<String, dynamic>.from(event.snapshot.value as Map);
-        return UserModel.fromMap(driverData);
-      }
-      return null;
+      print('✅ Driver $driverId accepting ride $rideId');
+      await _dbService.updateRideStatus(rideId, 'accepted', driverId: driverId);
+       print('✅Ride $rideId accepted by driver $driverId');
+      await _notificationCubit.sendRideAcceptedNotification(
+        riderId: riderId,
+        rideId: rideId,
+        driverName: driverName,
+      );
     } catch (e) {
-      print('Error getting driver info: $e');
-      return null;
+      print('❌Error accepting ride: $e');
+      emit(RideError(e.toString()));
     }
   }
 
-  // Notify nearby drivers about ride request
-  Future<void> _notifyNearbyDrivers(String rideId, LatLng pickupLocation) async {
-    try {
-      // Get nearby drivers
-      DatabaseEvent event = await _database
-          .ref('users')
-          .orderByChild('role')
-          .equalTo('driver')
-          .once();
+  Future<void> startRide(String rideId, String riderId) async {
+    try {      print('🚀 Starting ride: $rideId');
+    
+      await _dbService.updateRideStatus(rideId, 'in_progress');
 
-      if (event.snapshot.value == null) return;
-
-      Map<dynamic, dynamic> driversMap = event.snapshot.value as Map;
-
-      for (var entry in driversMap.entries) {
-        Map<String, dynamic> driverData = 
-            Map<String, dynamic>.from(entry.value as Map);
-        
-        if (driverData['isAvailable'] == true) {
-          String driverId = entry.key;
-          
-          // Send notification
-          await _fcmService.sendNotificationToUser(
-            driverId,
-            'New Ride Request',
-            'A rider is requesting a ride near you',
-            {
-              'type': 'ride_request',
-              'rideId': rideId,
-            },
-          );
-        }
-      }
-    } catch (e) {
-      print('Error notifying drivers: $e');
+      await _notificationCubit.sendRideStartedNotification(
+        riderId: riderId,
+        rideId: rideId,
+      );
+    } catch (e) {print('❌ Error starting ride: $e');
+      emit(RideError(e.toString()));
     }
   }
 
-  // Cancel ride
-  Future<void> cancelRide(String rideId) async {
-    try {
-      await _database.ref('rides/$rideId').update({
-        'status': 'cancelled',
-      });
+  Future<void> completeRide(
+    String rideId,
+    String riderId,
+    String driverId,
+    double fare,
+  ) async {
+    try {      print('✅ Completing ride: $rideId');
+    
+      await _dbService.updateRideStatus(rideId, 'completed');
 
-      // Get ride data to notify driver if accepted
-      DatabaseEvent event = await _database.ref('rides/$rideId').once();
-      if (event.snapshot.value != null) {
-        Map<String, dynamic> rideData = 
-            Map<String, dynamic>.from(event.snapshot.value as Map);
-        
-        if (rideData['driverId'] != null) {
-          await _fcmService.sendNotificationToUser(
-            rideData['driverId'],
-            'Ride Cancelled',
-            'The rider has cancelled the ride',
-            {'type': 'ride_cancelled', 'rideId': rideId},
-          );
-        }
-      }
+      await _notificationCubit.sendRideCompletedNotification(
+        userId: riderId,
+        rideId: rideId,
+        fare: fare.toStringAsFixed(2),
+      );
 
-      emit(RideCancelled('You cancelled the ride'));
-      _rideSubscription?.cancel();
-      _currentRideId = null;
-    } catch (e) {
-      emit(RideError('Failed to cancel ride: ${e.toString()}'));
+      await _notificationCubit.sendRideCompletedNotification(
+        userId: driverId,
+        rideId: rideId,
+        fare: fare.toStringAsFixed(2),
+      );
+    } catch (e) {            print('❌ Error completing ride: $e');
+    
+    
+      emit(RideError(e.toString()));
     }
   }
 
-  // Get ride history
-  Future<List<RideModel>> getRideHistory() async {
-    try {
-      String userId = _auth.currentUser!.uid;
-      
-      DatabaseEvent event = await _database
-          .ref('rides')
-          .orderByChild('riderId')
-          .equalTo(userId)
-          .once();
+  Future<void> cancelRide(
+    String rideId,
+    String userId,
+    String otherUserId,
+    String cancelledBy,
+  ) async {
+    try {      print('❌ Cancelling ride: $rideId');
+    
+      await _dbService.updateRideStatus(rideId, 'cancelled');
+      stopWatchingRide();
 
-      if (event.snapshot.value == null) {
-        return [];
-      }
-
-      Map<dynamic, dynamic> ridesMap = event.snapshot.value as Map;
-      List<RideModel> rides = [];
-
-      for (var entry in ridesMap.entries) {
-        Map<String, dynamic> rideData = 
-            Map<String, dynamic>.from(entry.value as Map);
-        rides.add(RideModel.fromMap(rideData));
-      }
-
-      // Sort by timestamp (newest first)
-      rides.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-      return rides;
-    } catch (e) {
-      print('Error getting ride history: $e');
-      return [];
+      await _notificationCubit.sendRideCancelledNotification(
+        userId: otherUserId,
+        rideId: rideId,
+        cancelledBy: cancelledBy,
+      );
+    } catch (e) {      print('❌ Error cancelling ride: $e');
+    
+      emit(RideError(e.toString()));
     }
-  }
+  }void stopWatchingRide() {
+      print('🛑 Stopped watching ride: $_watchingRideId');
+      _currentRideSubscription?.cancel();
+      _currentRideSubscription = null;
+      _watchingRideId = null;
+    }
 
   @override
-  Future<void> close() {
-    _rideSubscription?.cancel();
+  Future<void> close() {    print('🔴 Closing RideCubit - cancelling all subscriptions');
+  
+    _ridesSubscription?.cancel();
+    _currentRideSubscription?.cancel();
     return super.close();
   }
 }

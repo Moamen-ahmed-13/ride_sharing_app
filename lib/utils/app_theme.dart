@@ -57,13 +57,6 @@ class AppTheme {
         ),
       ),
       
-      // cardTheme: CardTheme(
-      //   color: AppColors.cardBackground,
-      //   elevation: 2,
-      //   shape: RoundedRectangleBorder(
-      //     borderRadius: BorderRadius.circular(12),
-      //   ),
-      // ),
       
       inputDecorationTheme: InputDecorationTheme(
         filled: true,

@@ -1,5 +1,4 @@
 class Validators {
-  // Email validator
   static String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
       return 'Email is required';
@@ -16,7 +15,6 @@ class Validators {
     return null;
   }
   
-  // Password validator
   static String? validatePassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Password is required';
@@ -29,7 +27,6 @@ class Validators {
     return null;
   }
   
-  // Confirm password validator
   static String? validateConfirmPassword(String? value, String password) {
     if (value == null || value.isEmpty) {
       return 'Please confirm your password';
@@ -41,9 +38,7 @@ class Validators {
     
     return null;
   }
-  
-  // Name validator
-  static String? validateName(String? value) {
+    static String? validateName(String? value) {
     if (value == null || value.isEmpty) {
       return 'Name is required';
     }
@@ -59,13 +54,11 @@ class Validators {
     return null;
   }
   
-  // Phone validator
   static String? validatePhone(String? value) {
     if (value == null || value.isEmpty) {
       return 'Phone number is required';
     }
     
-    // Remove all non-numeric characters
     String cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
     
     if (cleaned.length < 10) {
@@ -75,7 +68,6 @@ class Validators {
     return null;
   }
   
-  // Vehicle number validator
   static String? validateVehicleNumber(String? value) {
     if (value == null || value.isEmpty) {
       return 'Vehicle number is required';
@@ -88,7 +80,6 @@ class Validators {
     return null;
   }
   
-  // License number validator
   static String? validateLicenseNumber(String? value) {
     if (value == null || value.isEmpty) {
       return 'License number is required';
@@ -101,7 +92,6 @@ class Validators {
     return null;
   }
   
-  // Vehicle type validator
   static String? validateVehicleType(String? value) {
     if (value == null || value.isEmpty) {
       return 'Vehicle type is required';
@@ -110,7 +100,6 @@ class Validators {
     return null;
   }
   
-  // Required field validator
   static String? validateRequired(String? value, String fieldName) {
     if (value == null || value.isEmpty) {
       return '$fieldName is required';
@@ -119,7 +108,6 @@ class Validators {
     return null;
   }
   
-  // Numeric validator
   static String? validateNumeric(String? value, String fieldName) {
     if (value == null || value.isEmpty) {
       return '$fieldName is required';
@@ -132,7 +120,6 @@ class Validators {
     return null;
   }
   
-  // Min length validator
   static String? validateMinLength(String? value, int minLength, String fieldName) {
     if (value == null || value.isEmpty) {
       return '$fieldName is required';
@@ -145,7 +132,6 @@ class Validators {
     return null;
   }
   
-  // Max length validator
   static String? validateMaxLength(String? value, int maxLength, String fieldName) {
     if (value == null || value.isEmpty) {
       return '$fieldName is required';

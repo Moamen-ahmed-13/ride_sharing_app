@@ -1,103 +1,54 @@
 import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:ride_sharing_app/services/location_service.dart';
-import 'package:ride_sharing_app/services/maps_service.dart';
-import 'location_state.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:ride_sharing_app/cubits/location/location_state.dart';
+import 'package:ride_sharing_app/services/firebase_database_service.dart';
 
 class LocationCubit extends Cubit<LocationState> {
-  final LocationService _locationService = LocationService();
-  final MapsService _mapsService = MapsService();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  
-  StreamSubscription<Position>? _locationSubscription;
-  Position? _currentPosition;
-
+  final DatabaseService _dbService = DatabaseService();
+StreamSubscription? _positionSubscription;
   LocationCubit() : super(LocationInitial());
 
-  // Get current location once
-  Future<void> getCurrentLocation() async {
+  Future<void> getCurrentLocation(String uid) async {
     try {
-      emit(LocationLoading());
-
-      bool hasPermission = await _locationService.handleLocationPermission();
-      
-      if (!hasPermission) {
-        emit(LocationPermissionDenied());
-        return;
-      }
-
-      Position? position = await _locationService.getCurrentLocation();
-      
-      if (position == null) {
-        emit(LocationServiceDisabled());
-        return;
-      }
-
-      _currentPosition = position;
-
-      // Get address from coordinates
-      String? address = await _mapsService.getAddressFromCoordinates(
-        LatLng(position.latitude, position.longitude),
-      );
-
-      emit(LocationLoaded(position, address: address));
-
-      // Update location in Firebase
-      if (_auth.currentUser != null) {
-        await _locationService.updateLocationInFirebase(
-          _auth.currentUser!.uid,
-          position,
+      var status = await Permission.location.request();
+      if (status.isGranted) {
+        Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+        await _dbService.updateUserLocation(
+          uid,
+          position.latitude,
+          position.longitude,
         );
+        emit(LocationLoaded(position.latitude, position.longitude));
+      } else {
+        emit(LocationError('Location permission denied'));
       }
     } catch (e) {
-      emit(LocationError('Failed to get location: ${e.toString()}'));
- }
-  }
-
-  // Start real-time location tracking
-  Future<void> startLocationTracking() async {
-    try {
-      bool hasPermission = await _locationService.handleLocationPermission();
-      
-      if (!hasPermission) {
-        emit(LocationPermissionDenied());
-        return;
-      }
-
-      _locationSubscription = _locationService
-          .getLocationStream()
-          .listen((Position position) {
-        _currentPosition = position;
-        emit(LocationUpdating(position));
-
-        // Update location in Firebase
-        if (_auth.currentUser != null) {
-          _locationService.updateLocationInFirebase(
-            _auth.currentUser!.uid,
-            position,
-          );
-        }
-      });
-    } catch (e) {
-      emit(LocationError('Failed to start tracking: ${e.toString()}'));
+      emit(LocationError(e.toString()));
     }
   }
-
-  // Stop location tracking
-  void stopLocationTracking() {
-    _locationSubscription?.cancel();
-    _locationSubscription = null;
+  void startLocationTracking(String uid) {
+    _positionSubscription = Geolocator.getPositionStream(
+      locationSettings: LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    ).listen((Position position) {
+      _dbService.updateUserLocation(
+        uid,
+        position.latitude,
+        position.longitude,
+      );
+      emit(LocationLoaded(position.latitude, position.longitude));
+    });
   }
-
-  // Get current position (cached)
-  Position? get currentPosition => _currentPosition;
-
-  @override
-  Future<void> close() {
-    stopLocationTracking();
-    return super.close();
+void stopLocationTracking() {
+    _positionSubscription?.cancel();
+  }@override
+    Future close() {
+      stopLocationTracking();
+      return super.close();
+    }
   }
-}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ride_sharing_app/screens/auth/auth_screen.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   const RoleSelectionScreen({Key? key}) : super(key: key);
@@ -30,16 +31,16 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                 'Welcome!',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Choose how you want to use the app',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.grey,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: Colors.grey),
               ),
               const SizedBox(height: 48),
               _RoleCard(
@@ -70,7 +71,10 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                 onPressed: _selectedRole.isEmpty
                     ? null
                     : () {
-                        Navigator.pop(context, _selectedRole);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => AuthScreen()),
+                        );
                       },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -78,10 +82,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Continue',
-                  style: TextStyle(fontSize: 16),
-                ),
+                child: const Text('Continue', style: TextStyle(fontSize: 16)),
               ),
             ],
           ),
@@ -158,10 +159,7 @@ class _RoleCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                 ],
               ),

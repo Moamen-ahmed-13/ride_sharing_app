@@ -3,6 +3,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+    
 
     <application
         android:label="ride_sharing_app"
@@ -23,8 +24,8 @@
                  to determine the Window background behind the Flutter UI. -->
             <meta-data
               android:name="com.google.android.geo.API_KEY"
-              android:value="AIzaSyBhDflq5iJrXIcKpeq0IzLQPQpOboX91lY"
-              android:resource="@style/NormalTheme"
+              android:value="AIzaSyAPXl8-oyESgB58ODtvCGwJ8Am6MvGLC1Y"
+              
               />  
                           <!-- android:name="io.flutter.embedding.android.NormalTheme" -->
 

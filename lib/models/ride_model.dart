@@ -1,63 +1,75 @@
-import 'package:ride_sharing_app/models/location_model.dart';
-
-class RideModel {
-  final String rideId;
+class Ride {
+  final String id;
   final String riderId;
   final String? driverId;
-  final LocationModel pickupLocation;
-  final LocationModel dropoffLocation;
-  final String status; 
+  final double startLat;
+  final double startLng;
+  final double endLat;
+  final double endLng;
+  final String status;
   final double? fare;
-  final DateTime timestamp;
-  final List<Map<String, double>>? routePolyline;
   final double? distance;
-  final int? estimatedTime;
+  final double? duration;
 
-  RideModel({
-    required this.rideId,
+  Ride({
+    required this.id,
     required this.riderId,
     this.driverId,
-    required this.pickupLocation,
-    required this.dropoffLocation,
+    required this.startLat,
+    required this.startLng,
+    required this.endLat,
+    required this.endLng,
     required this.status,
     this.fare,
-    required this.timestamp,
-    this.routePolyline,
     this.distance,
-    this.estimatedTime,
+    this.duration,
   });
+
+  factory Ride.fromMap(String id, Map<String, dynamic> data) {
+    return Ride(
+      id: id,
+      riderId: data['riderId'] ?? '',
+      driverId: data['driverId'],
+      startLat: _toDouble(data['startLat']),
+      startLng: _toDouble(data['startLng']),
+      endLat: _toDouble(data['endLat']),
+      endLng: _toDouble(data['endLng']),
+      status: data['status'] ?? 'requested',
+      fare: _toDoubleNullable(data['fare']),
+      distance: _toDoubleNullable(data['distance']),
+      duration: _toDoubleNullable(data['duration']),
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
-      'rideId': rideId,
+      'id': id,
       'riderId': riderId,
       'driverId': driverId,
-      'pickupLocation': pickupLocation.toMap(),
-      'dropoffLocation': dropoffLocation.toMap(),
+      'startLat': startLat,
+      'startLng': startLng,
+      'endLat': endLat,
+      'endLng': endLng,
       'status': status,
       'fare': fare,
-      'timestamp': timestamp.millisecondsSinceEpoch,
-      'routePolyline': routePolyline,
       'distance': distance,
-      'estimatedTime': estimatedTime,
+      'duration': duration,
     };
   }
 
-  factory RideModel.fromMap(Map<String, dynamic> map) {
-    return RideModel(
-      rideId: map['rideId'] ?? '',
-      riderId: map['riderId'] ?? '',
-      driverId: map['driverId'],
-      pickupLocation: LocationModel.fromMap(map['pickupLocation']),
-      dropoffLocation: LocationModel.fromMap(map['dropoffLocation']),
-      status: map['status'] ?? 'pending',
-      fare: map['fare']?.toDouble(),
-      timestamp: DateTime.fromMillisecondsSinceEpoch(map['timestamp']),
-      routePolyline: map['routePolyline'] != null 
-          ? List<Map<String, double>>.from(map['routePolyline'])
-          : null,
-      distance: map['distance']?.toDouble(),
-      estimatedTime: map['estimatedTime'],
-    );
+  static double _toDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  static double? _toDoubleNullable(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 }

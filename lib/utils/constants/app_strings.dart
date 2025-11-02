@@ -34,23 +34,19 @@ class AppStrings {
 }
 
 class AppConstants {
-  // Firebase paths
   static const String usersPath = 'users';
   static const String ridesPath = 'rides';
   static const String locationsPath = 'locations';
 
-  // Ride statuses
   static const String ridePending = 'pending';
   static const String rideAccepted = 'accepted';
   static const String rideStarted = 'started';
   static const String rideCompleted = 'completed';
   static const String rideCancelled = 'cancelled';
 
-  // User roles
   static const String roleRider = 'rider';
   static const String roleDriver = 'driver';
 
-  // Notification types
   static const String notifRideRequest = 'ride_request';
   static const String notifRideAccepted = 'ride_accepted';
   static const String notifDriverArrived = 'driver_arrived';
