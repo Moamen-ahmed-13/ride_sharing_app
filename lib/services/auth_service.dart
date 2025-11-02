@@ -9,14 +9,17 @@ class AuthService {
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-Future<UserCredential> signUp(String email, String password, String role, String name, String phone, String? vehicleType, String? vehicleNumber, String? licenseNumber) async {
+Future<UserCredential> signUp({required String email, required String password, required String confirmPassword, required String role, required String name, required String phone, String? vehicleType, String? vehicleNumber, String? licenseNumber}) async {
     UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
         final uid = userCredential.user!.uid;
     await _database.child('users').child(uid).set({
+
       'email': email,
+      'password': password,
+      'confirmPassword': confirmPassword,
       'role': role,
       'name': name,
       'phone': phone,

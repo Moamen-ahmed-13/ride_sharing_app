@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ride_sharing_app/cubits/auth/auth_cubit.dart';
 import 'package:ride_sharing_app/cubits/auth/auth_state.dart';
+import 'package:ride_sharing_app/screens/driver/driver_home_screen.dart';
+import 'package:ride_sharing_app/screens/rider/rider_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   @override
@@ -127,14 +129,15 @@ class _AuthScreenState extends State<AuthScreen>
         context.read<AuthCubit>().signIn(email, password);
       } else {
         context.read<AuthCubit>().signUp(
-          email,
-          password,
-          _nameController.text.trim(),
-          _phoneController.text.trim(),
-          _role,
-          _role == 'driver' ? _vehicleTypeController.text.trim() : null,
-          _role == 'driver' ? _vehicleNumberController.text.trim() : null,
-          _role == 'driver' ? _licenseNumberController.text.trim() : null,
+          email: email,
+          password: password,
+          confirmPassword: _confirmPasswordController.text,
+          name: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          role: _role,
+          vehicleType: _role == 'driver' ? _vehicleTypeController.text.trim() : null,
+          vehicleNumber: _role == 'driver' ? _vehicleNumberController.text.trim() : null,
+          licenseNumber: _role == 'driver' ? _licenseNumberController.text.trim() : null,
         );
       }
     }
@@ -155,6 +158,26 @@ class _AuthScreenState extends State<AuthScreen>
                 behavior: SnackBarBehavior.floating,
               ),
             );
+          } else if (state is AuthAuthenticated) {
+            if (state.user.role == 'rider') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => RiderHomeScreen()),
+              );
+            } else if (state.user.role == 'driver') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => DriverHomeScreen()),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Unknown user role: ${state.user.role}'),
+                  backgroundColor: Colors.red,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
           }
         },
         builder: (context, state) {

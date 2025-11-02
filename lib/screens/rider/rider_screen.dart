@@ -15,12 +15,12 @@ import 'package:ride_sharing_app/models/ride_model.dart';
 import 'package:ride_sharing_app/utils/widgets/app_drawer.dart';
 import 'package:ride_sharing_app/utils/widgets/in_app_notification_banner.dart';
 
-class EnhancedRiderScreen extends StatefulWidget {
+class RiderHomeScreen extends StatefulWidget {
   @override
-  _EnhancedRiderScreenState createState() => _EnhancedRiderScreenState();
+  _RiderHomeScreenState createState() => _RiderHomeScreenState();
 }
 
-class _EnhancedRiderScreenState extends State<EnhancedRiderScreen> {
+class _RiderHomeScreenState extends State<RiderHomeScreen> {
   final MapController _mapController = MapController();
   final TextEditingController _searchController = TextEditingController();
 

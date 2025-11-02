@@ -13,12 +13,12 @@ import 'package:ride_sharing_app/models/ride_model.dart';
 import 'package:ride_sharing_app/utils/widgets/app_drawer.dart';
 import 'package:ride_sharing_app/utils/widgets/in_app_notification_banner.dart';
 
-class EnhancedDriverScreen extends StatefulWidget {
+class DriverHomeScreen extends StatefulWidget {
   @override
-  _EnhancedDriverScreenState createState() => _EnhancedDriverScreenState();
+  _DriverHomeScreenState createState() => _DriverHomeScreenState();
 }
 
-class _EnhancedDriverScreenState extends State<EnhancedDriverScreen> {
+class _DriverHomeScreenState extends State<DriverHomeScreen> {
   final MapController _mapController = MapController();
   LatLng? _currentLocation;
   bool _isOnline = false;

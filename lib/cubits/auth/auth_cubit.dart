@@ -18,10 +18,10 @@ Future<void> _checkAuthStatus() async {
       _listenToUser();
     }
   }
-  Future<void> signUp(String email, String password, String role, String name, String phone, String? vehicleType, String? vehicleNumber, String? licenseNumber) async {
+  Future<void> signUp({required String email, required String password,required String confirmPassword, required String role, required String name, required String phone, String? vehicleType, String? vehicleNumber, String? licenseNumber}) async {
     emit(AuthLoading());
     try {
-      await _authService.signUp(email, password, role, name, phone, vehicleType, vehicleNumber, licenseNumber);
+      await _authService.signUp(email: email, password: password, confirmPassword: confirmPassword, role: role, name: name, phone: phone, vehicleType: vehicleType, vehicleNumber: vehicleNumber, licenseNumber: licenseNumber);
       _listenToUser();
     } catch (e) {
       emit(AuthError(e.toString()));
@@ -44,7 +44,7 @@ void _listenToUser() {
     _dbService.getUserStream(uid).listen((user) {
       if (user != null) {
         print('✅ User loaded: ${user.email} (${user.role})');
-        emit(AuthAuthenticated(user));
+        emit(AuthAuthenticated(user: user));
       } else {
         print('❌ User data not found in database');
         emit(AuthError('User data not found'));

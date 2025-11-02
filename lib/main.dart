@@ -55,9 +55,9 @@ class RideSharingApp extends StatelessWidget {
                 return SplashScreen();
               } else if (state is AuthAuthenticated) {
                 if (state.user.role == 'rider') {
-                  return EnhancedRiderScreen();
+                  return RiderHomeScreen();
                 } else if (state.user.role == 'driver') {
-                  return EnhancedDriverScreen();
+                  return DriverHomeScreen();
                 }
               }
               return RoleSelectionScreen();
