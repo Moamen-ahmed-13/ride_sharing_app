@@ -10,7 +10,9 @@ class Ride {
   final double? fare;
   final double? distance;
   final double? duration;
-
+final double? driverCurrentLat;
+  final double? driverCurrentLng;
+  final int? lastLocationUpdate;
   Ride({
     required this.id,
     required this.riderId,
@@ -22,7 +24,9 @@ class Ride {
     required this.status,
     this.fare,
     this.distance,
-    this.duration,
+    this.duration,this.driverCurrentLat,
+        this.driverCurrentLng,
+        this.lastLocationUpdate,
   });
 
   factory Ride.fromMap(String id, Map<String, dynamic> data) {
@@ -37,7 +41,9 @@ class Ride {
       status: data['status'] ?? 'requested',
       fare: _toDoubleNullable(data['fare']),
       distance: _toDoubleNullable(data['distance']),
-      duration: _toDoubleNullable(data['duration']),
+      duration: _toDoubleNullable(data['duration']),driverCurrentLat: _toDoubleNullable(data['driverCurrentLat']),
+            driverCurrentLng: _toDoubleNullable(data['driverCurrentLng']),
+            lastLocationUpdate: data['lastLocationUpdate'] as int?,
     );
   }
 
@@ -53,10 +59,44 @@ class Ride {
       'status': status,
       'fare': fare,
       'distance': distance,
-      'duration': duration,
+      'duration': duration,'driverCurrentLat': driverCurrentLat,
+            'driverCurrentLng': driverCurrentLng,
+            'lastLocationUpdate': lastLocationUpdate,
     };
   }
-
+ Ride copyWith({
+    String? id,
+    String? riderId,
+    String? driverId,
+    double? startLat,
+    double? startLng,
+    double? endLat,
+    double? endLng,
+    String? status,
+    double? fare,
+    double? distance,
+    double? duration,
+    double? driverCurrentLat,
+    double? driverCurrentLng,
+    int? lastLocationUpdate,
+  }) {
+    return Ride(
+      id: id ?? this.id,
+      riderId: riderId ?? this.riderId,
+      driverId: driverId ?? this.driverId,
+      startLat: startLat ?? this.startLat,
+      startLng: startLng ?? this.startLng,
+      endLat: endLat ?? this.endLat,
+      endLng: endLng ?? this.endLng,
+      status: status ?? this.status,
+      fare: fare ?? this.fare,
+      distance: distance ?? this.distance,
+      duration: duration ?? this.duration,
+      driverCurrentLat: driverCurrentLat ?? this.driverCurrentLat,
+      driverCurrentLng: driverCurrentLng ?? this.driverCurrentLng,
+      lastLocationUpdate: lastLocationUpdate ?? this.lastLocationUpdate,
+    );
+  }
   static double _toDouble(dynamic value) {
     if (value == null) return 0.0;
     if (value is double) return value;

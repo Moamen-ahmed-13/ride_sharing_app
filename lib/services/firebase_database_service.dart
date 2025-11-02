@@ -199,7 +199,22 @@ Future<void> createUser(String uid, String email, String role) async {
     'createdAt': ServerValue.timestamp,
   });
 }
-
+Future<void> updateDriverLocationInRide(
+  String rideId,
+  double lat,
+  double lng,
+) async {
+  try {
+    await _db.child('rides/$rideId').update({
+      'driverCurrentLat': lat,
+      'driverCurrentLng': lng,
+      'lastLocationUpdate': ServerValue.timestamp,
+    });
+    print('📍 Driver location updated in ride: $lat, $lng');
+  } catch (e) {
+    print('❌ Error updating driver location in ride: $e');
+  }
+}
 
 double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
   const double earthRadius = 6371; 

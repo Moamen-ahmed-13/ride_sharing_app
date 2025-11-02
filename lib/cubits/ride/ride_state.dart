@@ -28,7 +28,10 @@ class RideCompleted extends RideState {
   RideCompleted(this.ride);
 }
 
-class RideCancelled extends RideState {}
+class RideCancelled extends RideState {
+  final Ride ride;
+  RideCancelled(this.ride);
+}
 
 class RideListLoaded extends RideState {
   final List rides;

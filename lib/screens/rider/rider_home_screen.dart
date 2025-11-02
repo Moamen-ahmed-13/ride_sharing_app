@@ -16,6 +16,8 @@ import 'package:ride_sharing_app/utils/widgets/app_drawer.dart';
 import 'package:ride_sharing_app/utils/widgets/in_app_notification_banner.dart';
 
 class RiderHomeScreen extends StatefulWidget {
+  const RiderHomeScreen({super.key});
+
   @override
   _RiderHomeScreenState createState() => _RiderHomeScreenState();
 }
@@ -36,6 +38,9 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
   bool _isSearchingPickup = true;
   bool _showSearchResults = false;
 
+  final Set<String> _shownNotifications = {};
+  String? _lastRideId;
+
   @override
   void initState() {
     super.initState();
@@ -48,8 +53,23 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
     _locationTimer?.cancel();
     _searchController.dispose();
     context.read<RideCubitWithNotifications>().stopWatchingRide();
-
     super.dispose();
+  }
+
+  bool _shouldShowNotification(String rideId, String notificationType) {
+    final key = '$rideId-$notificationType';
+    if (_shownNotifications.contains(key)) {
+      return false;
+    }
+    _shownNotifications.add(key);
+    return true;
+  }
+
+  void _resetNotifications(String? newRideId) {
+    if (newRideId != _lastRideId) {
+      _shownNotifications.clear();
+      _lastRideId = newRideId;
+    }
   }
 
   Future<void> _initializeLocation() async {
@@ -153,19 +173,26 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
         duration: double.tryParse(_durationText?.split(' ')[0] ?? '0') ?? 0,
       );
 
+      // Reset notifications for new ride
+      _resetNotifications(ride.id);
+
       await context.read<RideCubitWithNotifications>().requestRide(
         ride,
         'Rider',
       );
 
       context.read<RideCubitWithNotifications>().watchRide(ride.id);
-      InAppNotificationBanner.show(
-        context,
-        title: 'Ride Requested 🚗',
-        message: 'Searching for nearby drivers...',
-        icon: Icons.search,
-        color: Colors.blue,
-      );
+      
+      // This notification will show only once for this ride
+      if (_shouldShowNotification(ride.id, 'requested')) {
+        InAppNotificationBanner.show(
+          context,
+          title: 'Ride Requested 🚗',
+          message: 'Searching for nearby drivers...',
+          icon: Icons.search,
+          color: Colors.blue,
+        );
+      }
     }
   }
 
@@ -204,6 +231,9 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
         _distanceText = null;
         _durationText = null;
       });
+      
+      // Reset notifications
+      _resetNotifications(null);
     }
   }
 
@@ -213,6 +243,23 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
       drawer: AppDrawer(),
       body: BlocListener<RideCubitWithNotifications, RideState>(
         listener: (context, state) {
+          String? currentRideId;
+          if (state is RideRequested) {
+            currentRideId = state.ride.id;
+          } else if (state is RideAccepted) {
+            currentRideId = state.ride.id;
+          } else if (state is RideInProgress) {
+            currentRideId = state.ride.id;
+          } else if (state is RideCompleted) {
+            currentRideId = state.ride.id;
+          } else if (state is RideCancelled) {
+            currentRideId = state.ride.id;
+          }
+
+          if (currentRideId != null) {
+            _resetNotifications(currentRideId);
+          }
+
           if (state is RideError) {
             InAppNotificationBanner.show(
               context,
@@ -222,48 +269,57 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
               color: Colors.red,
             );
           } else if (state is RideRequested) {
-            InAppNotificationBanner.show(
-              context,
-              title: 'Ride Requested',
-              message: 'Searching for nearby drivers...',
-              icon: Icons.search,
-              color: Colors.blue,
-            );
+            if (_shouldShowNotification(state.ride.id, 'requested')) {
+              InAppNotificationBanner.show(
+                context,
+                title: 'Ride Requested',
+                message: 'Searching for nearby drivers...',
+                icon: Icons.search,
+                color: Colors.blue,
+              );
+            }
           } else if (state is RideAccepted) {
-            InAppNotificationBanner.show(
-              context,
-              title: 'Driver Found! 🎉',
-              message: 'Your driver is on the way',
-              icon: Icons.check_circle,
-              color: Colors.green,
-            );
-            _showDriverAcceptedDialog(state.ride);
+            if (_shouldShowNotification(state.ride.id, 'accepted')) {
+              InAppNotificationBanner.show(
+                context,
+                title: 'Driver Found! 🎉',
+                message: 'Your driver is on the way',
+                icon: Icons.check_circle,
+                color: Colors.green,
+              );
+              _showDriverAcceptedDialog(state.ride);
+            }
           } else if (state is RideInProgress) {
-            InAppNotificationBanner.show(
-              context,
-              title: 'Ride Started',
-              message: 'Enjoy your trip!',
-              icon: Icons.directions_car,
-              color: Colors.orange,
-            );
+            if (_shouldShowNotification(state.ride.id, 'in_progress')) {
+              InAppNotificationBanner.show(
+                context,
+                title: 'Ride Started',
+                message: 'Enjoy your trip!',
+                icon: Icons.directions_car,
+                color: Colors.orange,
+              );
+            }
           } else if (state is RideCompleted) {
-            InAppNotificationBanner.show(
-              context,
-              title: 'Trip Complete',
-              message: 'Thanks for riding with us!',
-              icon: Icons.flag,
-              color: Colors.purple,
-            );
-
-            _showRatingDialog(state.ride);
+            if (_shouldShowNotification(state.ride.id, 'completed')) {
+              InAppNotificationBanner.show(
+                context,
+                title: 'Trip Complete',
+                message: 'Thanks for riding with us!',
+                icon: Icons.flag,
+                color: Colors.purple,
+              );
+              _showRatingDialog(state.ride);
+            }
           } else if (state is RideCancelled) {
-            InAppNotificationBanner.show(
-              context,
-              title: 'Ride Cancelled',
-              message: 'Your ride has been cancelled',
-              icon: Icons.cancel,
-              color: Colors.red,
-            );
+            if (_shouldShowNotification(state.ride.id, 'cancelled')) {
+              InAppNotificationBanner.show(
+                context,
+                title: 'Ride Cancelled',
+                message: 'Your ride has been cancelled',
+                icon: Icons.cancel,
+                color: Colors.red,
+              );
+            }
           }
         },
         child: Stack(
@@ -482,67 +538,111 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
               _durationText = mapState.durationText;
             }
 
-            return FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                initialCenter: _currentLocation ?? LatLng(0, 0),
-                initialZoom: 15.0,
-                minZoom: 3.0,
-                maxZoom: 18.0,
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate:
-                      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  subdomains: ['a', 'b', 'c'],
-                  additionalOptions: {
-                    'attribution': '© OpenStreetMap contributors',
-                  },
-                ),
-                if (_routePoints.isNotEmpty)
-                  PolylineLayer(
-                    polylines: [
-                      Polyline(
-                        points: _routePoints,
-                        strokeWidth: 4.0,
-                        color: Colors.blue,
-                      ),
-                    ],
+            return BlocBuilder<RideCubitWithNotifications, RideState>(
+              builder: (context, rideState) {
+                LatLng? driverLocation;
+                if (rideState is RideAccepted &&
+                    rideState.ride.driverCurrentLat != null) {
+                  driverLocation = LatLng(
+                    rideState.ride.driverCurrentLat!,
+                    rideState.ride.driverCurrentLng!,
+                  );
+                } else if (rideState is RideInProgress &&
+                    rideState.ride.driverCurrentLat != null) {
+                  driverLocation = LatLng(
+                    rideState.ride.driverCurrentLat!,
+                    rideState.ride.driverCurrentLng!,
+                  );
+                }
+
+                return FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: _currentLocation ?? LatLng(0, 0),
+                    initialZoom: 15.0,
+                    minZoom: 3.0,
+                    maxZoom: 18.0,
                   ),
-                MarkerLayer(
-                  markers: [
-                    if (_currentLocation != null)
-                      Marker(
-                        point: _currentLocation!,
-                        width: 40,
-                        height: 40,
-                        child: Icon(
-                          Icons.my_location,
-                          color: Colors.blue,
-                          size: 30,
-                        ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      subdomains: ['a', 'b', 'c'],
+                      additionalOptions: {
+                        'attribution': '© OpenStreetMap contributors',
+                      },
+                    ),
+                    if (_routePoints.isNotEmpty)
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: _routePoints,
+                            strokeWidth: 4.0,
+                            color: Colors.blue,
+                          ),
+                        ],
                       ),
-                    if (_pickupLocation != null)
-                      Marker(
-                        point: _pickupLocation!,
-                        width: 40,
-                        height: 40,
-                        child: Icon(
-                          Icons.location_on,
-                          color: Colors.green,
-                          size: 40,
-                        ),
-                      ),
-                    if (_dropoffLocation != null)
-                      Marker(
-                        point: _dropoffLocation!,
-                        width: 40,
-                        height: 40,
-                        child: Icon(Icons.flag, color: Colors.red, size: 40),
-                      ),
+                    MarkerLayer(
+                      markers: [
+                        if (_currentLocation != null)
+                          Marker(
+                            point: _currentLocation!,
+                            width: 40,
+                            height: 40,
+                            child: Icon(
+                              Icons.my_location,
+                              color: Colors.blue,
+                              size: 30,
+                            ),
+                          ),
+                        if (driverLocation != null)
+                          Marker(
+                            point: driverLocation,
+                            width: 50,
+                            height: 50,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 3,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.local_taxi,
+                                color: Colors.white,
+                                size: 30,
+                              ),
+                            ),
+                          ),
+                        if (_pickupLocation != null)
+                          Marker(
+                            point: _pickupLocation!,
+                            width: 40,
+                            height: 40,
+                            child: Icon(
+                              Icons.location_on,
+                              color: Colors.green,
+                              size: 40,
+                            ),
+                          ),
+                        if (_dropoffLocation != null)
+                          Marker(
+                            point: _dropoffLocation!,
+                            width: 40,
+                            height: 40,
+                            child: Icon(
+                              Icons.flag,
+                              color: Colors.red,
+                              size: 40,
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
-                ),
-              ],
+                );
+              },
             );
           },
         );

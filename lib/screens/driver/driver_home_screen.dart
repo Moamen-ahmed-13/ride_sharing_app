@@ -10,22 +10,31 @@ import 'package:ride_sharing_app/cubits/location/location_state.dart';
 import 'package:ride_sharing_app/cubits/ride/ride_cubit.dart';
 import 'package:ride_sharing_app/cubits/ride/ride_state.dart';
 import 'package:ride_sharing_app/models/ride_model.dart';
+import 'package:ride_sharing_app/services/firebase_database_service.dart';
 import 'package:ride_sharing_app/utils/widgets/app_drawer.dart';
 import 'package:ride_sharing_app/utils/widgets/in_app_notification_banner.dart';
 
 class DriverHomeScreen extends StatefulWidget {
+  const DriverHomeScreen({super.key});
+
   @override
   _DriverHomeScreenState createState() => _DriverHomeScreenState();
 }
 
 class _DriverHomeScreenState extends State<DriverHomeScreen> {
   final MapController _mapController = MapController();
+  final DatabaseService _dbService = DatabaseService();
+
   LatLng? _currentLocation;
   bool _isOnline = false;
   Timer? _locationTimer;
   Timer? _rideRefreshTimer;
+  Timer? _activeRideLocationTimer;
   Ride? _activeRide;
-
+  String? _lastNotificationKey;
+  DateTime? _lastNotificationTime;
+  final Duration _notificationCooldown = Duration(seconds: 3);
+  Set<String> _shownRideIds = {};
   @override
   void initState() {
     super.initState();
@@ -38,7 +47,27 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   void dispose() {
     _locationTimer?.cancel();
     _rideRefreshTimer?.cancel();
+    _activeRideLocationTimer?.cancel();
     super.dispose();
+  }
+
+  bool _shouldShowNotification(String key) {
+    final now = DateTime.now();
+
+    if (_lastNotificationKey == key && _lastNotificationTime != null) {
+      final timeSinceLastNotification = now.difference(_lastNotificationTime!);
+      if (timeSinceLastNotification < _notificationCooldown) {
+        print('🚫 Blocked duplicate notification: $key (cooldown active)');
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  void _markNotificationShown(String key) {
+    _lastNotificationKey = key;
+    _lastNotificationTime = DateTime.now();
   }
 
   Future<void> _initializeLocation() async {
@@ -50,6 +79,25 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       _locationTimer = Timer.periodic(Duration(seconds: 15), (timer) {
         context.read<LocationCubit>().getCurrentLocation(authState.user.id);
       });
+    }
+  }
+
+  void _showNotification({
+    required String key,
+    required String title,
+    required String message,
+    required IconData icon,
+    required Color color,
+  }) {
+    if (_shouldShowNotification(key)) {
+      _markNotificationShown(key);
+      InAppNotificationBanner.show(
+        context,
+        title: title,
+        message: message,
+        icon: icon,
+        color: color,
+      );
     }
   }
 
@@ -77,12 +125,43 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     }
   }
 
+  void _startActiveRideLocationTracking() {
+    print('🎯 Starting active ride location tracking...');
+
+    _activeRideLocationTimer?.cancel();
+    _activeRideLocationTimer = Timer.periodic(Duration(seconds: 5), (
+      timer,
+    ) async {
+      if (_activeRide != null && _currentLocation != null) {
+        await _dbService.updateDriverLocationInRide(
+          _activeRide!.id,
+          _currentLocation!.latitude,
+          _currentLocation!.longitude,
+        );
+
+        print(
+          '📍 Updated driver location: ${_currentLocation!.latitude}, ${_currentLocation!.longitude}',
+        );
+      } else {
+        print('⚠️ No active ride or location, stopping tracker');
+        _stopActiveRideLocationTracking();
+      }
+    });
+  }
+
+  void _stopActiveRideLocationTracking() {
+    print('🛑 Stopping active ride location tracking');
+    _activeRideLocationTimer?.cancel();
+    _activeRideLocationTimer = null;
+  }
+
   void _toggleOnlineStatus() {
     setState(() => _isOnline = !_isOnline);
 
     final authState = context.read<AuthCubit>().state;
     if (authState is AuthAuthenticated) {
       if (_isOnline && _currentLocation != null) {
+        _shownRideIds.clear();
         context.read<RideCubitWithNotifications>().loadNearbyRides(
           _currentLocation!.latitude,
           _currentLocation!.longitude,
@@ -108,11 +187,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   }
 
   void _resetToAvailableState() {
+    _stopActiveRideLocationTracking();
     setState(() {
       _activeRide = null;
       _isOnline = true;
     });
-
+    _shownRideIds.clear();
     if (_currentLocation != null) {
       context.read<RideCubitWithNotifications>().loadNearbyRides(
         _currentLocation!.latitude,
@@ -176,6 +256,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           _activeRide = ride;
           _isOnline = false;
         });
+        _startActiveRideLocationTracking();
 
         context.read<RideCubitWithNotifications>().watchRide(ride.id);
 
@@ -215,6 +296,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       await context.read<RideCubitWithNotifications>().startRide(
         ride.id,
         ride.riderId,
+      );
+      InAppNotificationBanner.show(
+        context,
+        title: 'Ride Started',
+        message: 'Your location is being shared with the rider',
+        icon: Icons.gps_fixed,
+        color: Colors.blue,
       );
     }
   }
@@ -324,12 +412,21 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       drawer: AppDrawer(),
       body: BlocListener<RideCubitWithNotifications, RideState>(
         listenWhen: (previous, current) {
-          return previous.runtimeType != current.runtimeType;
+          if (previous.runtimeType == current.runtimeType) {
+            if (current is RideListLoaded && previous is RideListLoaded) {
+              final currentIds = current.rides.map((r) => r.id).toSet();
+              final previousIds = previous.rides.map((r) => r.id).toSet();
+              return !currentIds.containsAll(previousIds) ||
+                  !previousIds.containsAll(currentIds);
+            }
+            return false;
+          }
+          return true;
         },
         listener: (context, state) {
           if (state is RideError) {
-            InAppNotificationBanner.show(
-              context,
+            _showNotification(
+              key: 'ride_error_${state.message}',
               title: 'Error',
               message: state.message,
               icon: Icons.error,
@@ -337,27 +434,35 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             );
           } else if (state is RideListLoaded && state.rides.isNotEmpty) {
             if (_activeRide == null && _isOnline) {
-              InAppNotificationBanner.show(
-                context,
-                title: 'New Ride Request! 🚗',
-                message: '${state.rides.length} ride(s) available nearby',
-                icon: Icons.car_rental,
-                color: Colors.blue,
-              );
+              final newRides = state.rides
+                  .where((r) => !_shownRideIds.contains(r.id))
+                  .toList();
+
+              if (newRides.isNotEmpty) {
+                _shownRideIds.addAll(state.rides.map((r) => r.id));
+
+                _showNotification(
+                  key: 'new_rides_${newRides.length}',
+                  title: 'New Ride Request! 🚗',
+                  message: '${newRides.length} new ride(s) available nearby',
+                  icon: Icons.car_rental,
+                  color: Colors.blue,
+                );
+              }
             }
           } else if (state is RideAccepted) {
             setState(() => _activeRide = state.ride);
           } else if (state is RideInProgress) {
-            InAppNotificationBanner.show(
-              context,
+            _showNotification(
+              key: 'trip_started_${state.ride.id}',
               title: 'Trip Started',
               message: 'Drive safely!',
               icon: Icons.directions_car,
               color: Colors.orange,
             );
           } else if (state is RideCompleted) {
-            InAppNotificationBanner.show(
-              context,
+            _showNotification(
+              key: 'trip_completed_${state.ride.id}',
               title: 'Trip Completed! 🎉',
               message: 'Fare: \$${state.ride.fare?.toStringAsFixed(2)}',
               icon: Icons.check_circle,
@@ -367,8 +472,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             if (_activeRide != null) {
               _resetToAvailableState();
 
-              InAppNotificationBanner.show(
-                context,
+              _showNotification(
+                key: 'ride_cancelled_${state.ride.id}',
                 title: 'Ride Cancelled',
                 message:
                     'Rider cancelled the ride. You are now available again.',
@@ -389,6 +494,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             if (_isOnline && _activeRide == null) _buildAvailableRides(),
             _buildMyLocationButton(),
             _appDrawer(),
+            _trackMyLocation(),
           ],
         ),
       ),
@@ -425,7 +531,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                     height: 40,
                     child: Icon(
                       Icons.local_taxi,
-                      color: _isOnline ? Colors.green : Colors.grey,
+                      color: _isOnline ? Colors.green : Colors.black,
                       size: 40,
                     ),
                   ),
@@ -453,6 +559,44 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         );
       },
     );
+  }
+
+  Widget _trackMyLocation() {
+    if (_activeRide != null) {
+      return Positioned(
+        top: 40,
+        right: 16,
+        child: Padding(
+          padding: EdgeInsets.only(right: 8),
+          child: Center(
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.green,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.gps_fixed, size: 16, color: Colors.white),
+                  SizedBox(width: 4),
+                  Text(
+                    'TRACKING',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      return SizedBox.shrink();
+    }
   }
 
   Widget _appDrawer() {

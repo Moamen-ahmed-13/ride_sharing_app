@@ -78,7 +78,7 @@ print('✅ Ride created with ID: ${ride.id}');
             _currentRideSubscription?.cancel();
             break;
           case 'cancelled':
-            emit(RideCancelled());
+            emit(RideCancelled(ride));
             _currentRideSubscription?.cancel();
             break;
         }

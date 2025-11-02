@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ride_sharing_app/cubits/auth/auth_cubit.dart';
 import 'package:ride_sharing_app/cubits/auth/auth_state.dart';
 import 'package:ride_sharing_app/screens/driver/driver_home_screen.dart';
-import 'package:ride_sharing_app/screens/rider/rider_screen.dart';
+import 'package:ride_sharing_app/screens/rider/rider_home_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   @override

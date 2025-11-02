@@ -9,7 +9,7 @@ import 'package:ride_sharing_app/cubits/notification/notification_cubit.dart';
 import 'package:ride_sharing_app/cubits/ride/ride_cubit.dart';
 import 'package:ride_sharing_app/screens/auth/role_selection_screen.dart';
 import 'package:ride_sharing_app/screens/driver/driver_home_screen.dart';
-import 'package:ride_sharing_app/screens/rider/rider_screen.dart';
+import 'package:ride_sharing_app/screens/rider/rider_home_screen.dart';
 import 'package:ride_sharing_app/screens/shared/splash_screen.dart';
 
 void main() async {
