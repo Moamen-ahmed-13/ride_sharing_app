@@ -4,147 +4,160 @@ import 'package:ride_sharing_app/models/ride_model.dart';
 import 'package:ride_sharing_app/models/user_model.dart';
 
 class DatabaseService {
-  final DatabaseReference _db = FirebaseDatabase.instance.ref();
+  final DatabaseReference _database;
+
+  DatabaseService({required DatabaseReference database})
+      : _database = database;
 
   Future<void> updateUserRole(String uid, String role) async {
-    await _db.child('users/$uid/role').set(role);
+    try {
+      await _database.child('users/$uid/role').set(role);
+    } catch (e) {
+      print('Error updating user role: $e');
+      rethrow;
+    }
   }
 
   Future<void> updateUserLocation(String uid, double lat, double lng) async {
-    await _db.child('users/$uid').update({
-      'lat': lat,
-      'lng': lng,
-      'lastUpdated': ServerValue.timestamp,
-    });
+    try {
+      await _database.child('users/$uid').update({
+        'lat': lat,
+        'lng': lng,
+        'lastUpdated': ServerValue.timestamp,
+      });
+    } catch (e) {
+      print('Error updating location: $e');
+      rethrow;
+    }
   }
 
   Future<User?> getUser(String uid) async {
     try {
-      final snapshot = await _db.child('users').child(uid).get();
-      
-      if (snapshot.exists && snapshot.value != null) {
-        final data = snapshot.value;
-        if (data is Map) {
-          return User.fromMap(Map<String, dynamic>.from(data));
-        }
+      final snapshot = await _database.child('users/$uid').get();
+
+      if (!snapshot.exists || snapshot.value == null) {
+        return null;
       }
-      
-      return null;
+
+      final data = _parseMap(snapshot.value);
+      if (data == null) {
+        print('Error: Invalid user data format');
+        return null;
+      }
+
+      data['id'] = uid;
+      return User.fromMap(data);
     } catch (e) {
       print('Error getting user: $e');
       return null;
     }
   }
 
-Stream<User?> getUserStream(String uid) {
-  return _db.child('users/$uid').onValue.map((event) {
-    if (event.snapshot.value != null) {
-      Map<String, dynamic> data = Map<String, dynamic>.from(event.snapshot.value as Map);
-      
-      data['id'] = uid;
-              print('📊 User data from Firebase: $data');
-      
-      return User.fromMap(data);
-    }
-    return null;
-  });
-}
-  Future<void> saveUser(String uid, User user) async {
-    try {
-      await _db.child('users').child(uid).set(user.toMap());
-    } catch (e) {
-      print('Error saving user: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> updateUser(String uid, Map<String, dynamic> updates) async {
-    try {
-      await _db.child('users').child(uid).update(updates);
-    } catch (e) {
-      print('Error updating user: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> deleteUser(String uid) async {
-    try {
-      await _db.child('users').child(uid).remove();
-    } catch (e) {
-      print('Error deleting user: $e');
-      rethrow;
-    }
-  }
-
-  Future<bool> userExists(String uid) async {
-    try {
-      final snapshot = await _db.child('users').child(uid).get();
-      return snapshot.exists;
-    } catch (e) {
-      print('Error checking user existence: $e');
-      return false;
-    }
-  }
-  Future<void> createRide(Ride ride) async {
-    await _db.child('rides/${ride.id}').set(ride.toMap());
-  }
-
- Stream<Ride?> getRideStream(String rideId) {
-  return _db.child('rides/$rideId').onValue
-    .map((event) {
+  Stream<User?> getUserStream(String uid) {
+    return _database.child('users/$uid').onValue.map((event) {
       try {
-        if (event.snapshot.value != null) {
-          Map<String, dynamic> data = 
-              Map<String, dynamic>.from(event.snapshot.value as Map);
-          print('🔄 Ride stream update: $rideId - ${data['status']}');
-          return Ride.fromMap(rideId, data);
+        if (!event.snapshot.exists || event.snapshot.value == null) {
+          return null;
         }
-        print('⚠️ Ride stream: null data for $rideId');
+
+        final data = _parseMap(event.snapshot.value);
+        if (data == null) {
+          print('Error: Invalid data format in user stream');
+          return null;
+        }
+
+        data['id'] = uid;
+        print('📊 User data from Firebase: $data');
+        return User.fromMap(data);
+      } catch (e) {
+        print('Error parsing user stream data: $e');
         return null;
+      }
+    }).handleError((error) {
+      print('User stream error: $error');
+    });
+  }
+
+  Future<void> createRide(Ride ride) async {
+    try {
+      await _database.child('rides/${ride.id}').set(ride.toMap());
+    } catch (e) {
+      print('Error creating ride: $e');
+      rethrow;
+    }
+  }
+
+  Stream<Ride?> getRideStream(String rideId) {
+    return _database.child('rides/$rideId').onValue.map((event) {
+      try {
+        if (!event.snapshot.exists || event.snapshot.value == null) {
+          print('⚠️ Ride stream: null data for $rideId');
+          return null;
+        }
+
+        final data = _parseMap(event.snapshot.value);
+        if (data == null) {
+          print('Error: Invalid ride data format');
+          return null;
+        }
+
+        print('🔄 Ride stream update: $rideId - ${data['status']}');
+        return Ride.fromMap(rideId, data);
       } catch (e) {
         print('❌ Error parsing ride data: $e');
         return null;
       }
-    })
-    .handleError((error) {
-      print('❌ Stream error: $error');
+    }).handleError((error) {
+      print('❌ Ride stream error: $error');
     });
-}
+  }
 
-  Stream<List<Ride>> getNearbyRides(double lat, double lng, double radiusKm) {
-    return _db.child('rides').onValue.map((event) {
-      List<Ride> rides = [];
+  Stream<List<Ride>> getNearbyRides(
+    double lat,
+    double lng,
+    double radiusKm,
+  ) {
+    return _database.child('rides').onValue.map((event) {
+      final List<Ride> rides = [];
+
       try {
-        if (event.snapshot.value != null) {
-          Map<String, dynamic> data = 
-              Map<String, dynamic>.from(event.snapshot.value as Map);
-          
-          data.forEach((key, value) {
-            try {
-              Ride ride = Ride.fromMap(
-                key,
-                Map<String, dynamic>.from(value),
-              );
-              
-              double distance = _calculateDistance(
-                lat,
-                lng,
-                ride.startLat,
-                ride.startLng,
-              );
-              
-              if (distance <= radiusKm && ride.status == 'requested') {
-                rides.add(ride);
-              }
-            } catch (e) {
-              print('Error parsing individual ride: $e');
-            }
-          });
+        if (!event.snapshot.exists || event.snapshot.value == null) {
+          return rides;
         }
+
+        final data = _parseMap(event.snapshot.value);
+        if (data == null) {
+          return rides;
+        }
+
+        data.forEach((key, value) {
+          try {
+            final rideData = _parseMap(value);
+            if (rideData == null) return;
+
+            final ride = Ride.fromMap(key, rideData);
+
+            final distance = _calculateDistance(
+              lat,
+              lng,
+              ride.startLat,
+              ride.startLng,
+            );
+
+            if (distance <= radiusKm && ride.status == 'requested') {
+              rides.add(ride);
+            }
+          } catch (e) {
+            print('Error parsing individual ride: $e');
+          }
+        });
       } catch (e) {
         print('Error parsing rides data: $e');
       }
+
       return rides;
+    }).handleError((error) {
+      print('Nearby rides stream error: $error');
     });
   }
 
@@ -154,81 +167,109 @@ Stream<User?> getUserStream(String uid) {
     String? driverId,
   }) async {
     try {
-      Map<String, dynamic> update = {'status': status,'lastUpdated': ServerValue.timestamp,};
-      if (driverId != null) update['driverId'] = driverId;
-      await _db.child('rides/$rideId').update(update);
+      final Map<String, dynamic> update = {
+        'status': status,
+        'lastUpdated': ServerValue.timestamp,
+      };
+
+      if (driverId != null) {
+        update['driverId'] = driverId;
+      }
+
+      await _database.child('rides/$rideId').update(update);
     } catch (e) {
       print('Error updating ride status: $e');
       rethrow;
     }
   }
 
+  Future<void> updateDriverLocationInRide(
+    String rideId,
+    double lat,
+    double lng,
+  ) async {
+    try {
+      await _database.child('rides/$rideId').update({
+        'driverCurrentLat': lat,
+        'driverCurrentLng': lng,
+        'lastLocationUpdate': ServerValue.timestamp,
+      });
+      print('📍 Driver location updated in ride: $lat, $lng');
+    } catch (e) {
+      print('❌ Error updating driver location in ride: $e');
+      rethrow;
+    }
+  }
+
   Future<List<Ride>> getUserRideHistory(String userId, String role) async {
     try {
-      String field = role == 'rider' ? 'riderId' : 'driverId';
-      final snapshot = await _db
+      final String field = role == 'rider' ? 'riderId' : 'driverId';
+      final snapshot = await _database
           .child('rides')
           .orderByChild(field)
           .equalTo(userId)
           .get();
-      
-      List<Ride> rides = [];
-      if (snapshot.value != null) {
-        Map<String, dynamic> data = Map<String, dynamic>.from(snapshot.value as Map);
-        data.forEach((key, value) {
-          try {
-            rides.add(Ride.fromMap(key, Map<String, dynamic>.from(value)));
-          } catch (e) {
-            print('Error parsing ride in history: $e');
-          }
-        });
+
+      final List<Ride> rides = [];
+
+      if (snapshot.exists && snapshot.value != null) {
+        final data = _parseMap(snapshot.value);
+        if (data != null) {
+          data.forEach((key, value) {
+            try {
+              final rideData = _parseMap(value);
+              if (rideData != null) {
+                rides.add(Ride.fromMap(key, rideData));
+              }
+            } catch (e) {
+              print('Error parsing ride in history: $e');
+            }
+          });
+        }
       }
+
       return rides;
     } catch (e) {
       print('Error getting user ride history: $e');
       return [];
     }
   }
-Future<void> createUser(String uid, String email, String role) async {
-  await _db.child('users/$uid').set({
-    'id': uid,
-    'email': email,
-    'role': role,
-    'lat': null,
-    'lng': null,
-    'createdAt': ServerValue.timestamp,
-  });
-}
-Future<void> updateDriverLocationInRide(
-  String rideId,
-  double lat,
-  double lng,
-) async {
-  try {
-    await _db.child('rides/$rideId').update({
-      'driverCurrentLat': lat,
-      'driverCurrentLng': lng,
-      'lastLocationUpdate': ServerValue.timestamp,
-    });
-    print('📍 Driver location updated in ride: $lat, $lng');
-  } catch (e) {
-    print('❌ Error updating driver location in ride: $e');
-  }
-}
 
-double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
-  const double earthRadius = 6371; 
-  
-  final dLat = (lat2 - lat1) * (pi / 180);
-  final dLng = (lng2 - lng1) * (pi / 180);
-  
-  final a = pow(sin(dLat / 2), 2) +
-      cos(lat1 * pi / 180) * 
-      cos(lat2 * pi / 180) * 
-      pow(sin(dLng / 2), 2);
-  
-  final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-  
-  return earthRadius * c;
-}
+
+  Map<String, dynamic>? _parseMap(dynamic value) {
+    if (value == null) return null;
+
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+
+    return null;
+  }
+
+  double _calculateDistance(
+    double lat1,
+    double lng1,
+    double lat2,
+    double lng2,
+  ) {
+    const double earthRadius = 6371; 
+
+    final dLat = _toRadians(lat2 - lat1);
+    final dLng = _toRadians(lng2 - lng1);
+
+    final a = pow(sin(dLat / 2), 2) +
+        cos(_toRadians(lat1)) *
+            cos(_toRadians(lat2)) *
+            pow(sin(dLng / 2), 2);
+
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+    return earthRadius * c;
+  }
+
+  double _toRadians(double degrees) => degrees * pi / 180;
 }

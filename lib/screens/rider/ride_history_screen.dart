@@ -1,3 +1,4 @@
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -5,6 +6,7 @@ import 'package:ride_sharing_app/cubits/auth/auth_cubit.dart';
 import 'package:ride_sharing_app/cubits/auth/auth_state.dart';
 import 'package:ride_sharing_app/models/ride_model.dart';
 import 'package:ride_sharing_app/services/firebase_database_service.dart';
+import 'package:ride_sharing_app/utils/service_locator.dart';
 
 class RideHistoryScreen extends StatefulWidget {
   @override
@@ -12,7 +14,9 @@ class RideHistoryScreen extends StatefulWidget {
 }
 
 class _RideHistoryScreenState extends State<RideHistoryScreen> {
-  final DatabaseService _dbService = DatabaseService();
+  final DatabaseService _dbService = DatabaseService( 
+    database: getIt<DatabaseReference>(),
+  );
   List<Ride> _rides = [];
   bool _isLoading = true;
   String _errorMessage = '';

@@ -303,4 +303,7 @@ class NotificationService {
   }
 
   String? get fcmToken => _fcmToken;
+  Future<void> dispose() async {
+    await _localNotifications.cancelAll();
+  }
 }

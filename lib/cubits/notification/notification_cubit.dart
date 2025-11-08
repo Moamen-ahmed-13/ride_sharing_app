@@ -3,9 +3,11 @@ import 'package:ride_sharing_app/services/notification_service.dart';
 import 'notification_state.dart';
 
 class NotificationCubit extends Cubit<NotificationState> {
-  final NotificationService _notificationService = NotificationService();
+  final NotificationService _notificationService ;
 
-  NotificationCubit() : super(NotificationInitial());
+  NotificationCubit({required NotificationService notificationService})
+      : _notificationService = notificationService,
+        super(NotificationInitial());
 
   Future<void> initialize(String userId) async {
     try {
@@ -160,4 +162,9 @@ class NotificationCubit extends Cubit<NotificationState> {
   Future<void> clearAll(String userId) async {
     await _notificationService.clearAllNotifications(userId);
   }
+
+Future<void> dispose() async {
+    await _notificationService.dispose();
+  }
+
 }

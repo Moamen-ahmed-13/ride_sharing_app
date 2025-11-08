@@ -1,10 +1,15 @@
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 class OpenStreetMapService {
-  static const String _apiKey = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjdkYzBmM2Y2YjA3NjQxOWViOWVjYWE0OTRiNDI2MjRhIiwiaCI6Im11cm11cjY0In0=';
-  
+  final String _apiKey = dotenv.env['OPENSTREETMAP_API_KEY'] ?? '';
+  OpenStreetMapService(){
+    if (_apiKey.isEmpty) {
+      throw Exception('OPENSTREETMAP_API_KEY not found in environment');
+    }
+  }
   Future<Map<String, dynamic>?> getDirections(
     LatLng origin,
     LatLng destination,

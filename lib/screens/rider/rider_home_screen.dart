@@ -12,6 +12,7 @@ import 'package:ride_sharing_app/cubits/map/map_state.dart';
 import 'package:ride_sharing_app/cubits/ride/ride_cubit.dart';
 import 'package:ride_sharing_app/cubits/ride/ride_state.dart';
 import 'package:ride_sharing_app/models/ride_model.dart';
+import 'package:ride_sharing_app/utils/helpers.dart';
 import 'package:ride_sharing_app/utils/widgets/app_drawer.dart';
 import 'package:ride_sharing_app/utils/widgets/in_app_notification_banner.dart';
 
@@ -182,7 +183,7 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
       );
 
       context.read<RideCubitWithNotifications>().watchRide(ride.id);
-      
+
       // This notification will show only once for this ride
       if (_shouldShowNotification(ride.id, 'requested')) {
         InAppNotificationBanner.show(
@@ -231,7 +232,7 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
         _distanceText = null;
         _durationText = null;
       });
-      
+
       // Reset notifications
       _resetNotifications(null);
     }
@@ -279,6 +280,7 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
               );
             }
           } else if (state is RideAccepted) {
+            _buildDriverTrackingInfo(state.ride);
             if (_shouldShowNotification(state.ride.id, 'accepted')) {
               InAppNotificationBanner.show(
                 context,
@@ -608,6 +610,13 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
                                   color: Colors.white,
                                   width: 3,
                                 ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 6,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
                               ),
                               child: Icon(
                                 Icons.local_taxi,
@@ -647,6 +656,71 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildDriverTrackingInfo(Ride ride) {
+    if (ride.driverCurrentLat == null || _pickupLocation == null) {
+      return SizedBox.shrink();
+    }
+
+    final driverLocation = LatLng(
+      ride.driverCurrentLat!,
+      ride.driverCurrentLng!,
+    );
+
+    final distance = Helpers.calculateDistance(
+      driverLocation.latitude,
+      driverLocation.longitude,
+      _pickupLocation!.latitude,
+      _pickupLocation!.longitude,
+    );
+
+    final eta = (distance / 0.5).round();
+    return Positioned(
+      top: 100,
+      left: 16,
+      right: 16,
+      child: Card(
+        elevation: 4,
+        color: Colors.green[50],
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.local_taxi, color: Colors.white, size: 20),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Driver is on the way',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      '${distance.toStringAsFixed(1)} km away • $eta min',
+                      style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.gps_fixed, color: Colors.green),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

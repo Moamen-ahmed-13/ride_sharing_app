@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -11,6 +12,7 @@ import 'package:ride_sharing_app/cubits/ride/ride_cubit.dart';
 import 'package:ride_sharing_app/cubits/ride/ride_state.dart';
 import 'package:ride_sharing_app/models/ride_model.dart';
 import 'package:ride_sharing_app/services/firebase_database_service.dart';
+import 'package:ride_sharing_app/utils/service_locator.dart';
 import 'package:ride_sharing_app/utils/widgets/app_drawer.dart';
 import 'package:ride_sharing_app/utils/widgets/in_app_notification_banner.dart';
 
@@ -23,7 +25,9 @@ class DriverHomeScreen extends StatefulWidget {
 
 class _DriverHomeScreenState extends State<DriverHomeScreen> {
   final MapController _mapController = MapController();
-  final DatabaseService _dbService = DatabaseService();
+  final DatabaseService _dbService = DatabaseService(
+    database: getIt<DatabaseReference>(),
+  );
 
   LatLng? _currentLocation;
   bool _isOnline = false;
@@ -76,7 +80,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       await context.read<LocationCubit>().getCurrentLocation(authState.user.id);
       context.read<LocationCubit>().startLocationTracking(authState.user.id);
 
-      _locationTimer = Timer.periodic(Duration(seconds: 15), (timer) {
+      _locationTimer = Timer.periodic(Duration(seconds: 5), (timer) {
         context.read<LocationCubit>().getCurrentLocation(authState.user.id);
       });
     }
@@ -102,7 +106,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   }
 
   void _startRideRefreshTimer() {
-    _rideRefreshTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+    _rideRefreshTimer = Timer.periodic(Duration(seconds: 5), (timer) {
       if (_isOnline && _activeRide == null && _currentLocation != null) {
         print('🔄 Auto-refreshing nearby rides...');
         context.read<RideCubitWithNotifications>().loadNearbyRides(

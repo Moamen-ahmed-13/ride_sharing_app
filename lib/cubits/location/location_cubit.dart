@@ -7,9 +7,12 @@ import 'package:ride_sharing_app/cubits/location/location_state.dart';
 import 'package:ride_sharing_app/services/firebase_database_service.dart';
 
 class LocationCubit extends Cubit<LocationState> {
-  final DatabaseService _dbService = DatabaseService();
-StreamSubscription? _positionSubscription;
-  LocationCubit() : super(LocationInitial());
+  final DatabaseService _dbService;
+  StreamSubscription<Position>? _positionSubscription;
+
+  LocationCubit({required DatabaseService dbService})
+      : _dbService = dbService,
+        super(LocationInitial());
 
   Future<void> getCurrentLocation(String uid) async {
     try {
@@ -30,6 +33,7 @@ StreamSubscription? _positionSubscription;
     }
   }
   void startLocationTracking(String uid) {
+    _positionSubscription?.cancel();
     _positionSubscription = Geolocator.getPositionStream(
       locationSettings: LocationSettings(
         accuracy: LocationAccuracy.high,
@@ -42,11 +46,18 @@ StreamSubscription? _positionSubscription;
         position.longitude,
       );
       emit(LocationLoaded(position.latitude, position.longitude));
-    });
+    }, onError: (error) {
+      print('❌ Error tracking location: $error');
+      emit(LocationError(error.toString()));
+    },cancelOnError: false,
+    );
   }
 void stopLocationTracking() {
     _positionSubscription?.cancel();
-  }@override
+    _positionSubscription = null;
+  }
+  
+  @override
     Future close() {
       stopLocationTracking();
       return super.close();

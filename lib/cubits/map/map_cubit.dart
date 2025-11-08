@@ -5,9 +5,11 @@ import 'package:ride_sharing_app/services/openstreetmap_service.dart';
 
 
 class MapCubit extends Cubit<MapState> {
-  final OpenStreetMapService _mapService = OpenStreetMapService();
+  final OpenStreetMapService _mapService ;
 
-  MapCubit() : super(MapInitial());
+  MapCubit({required OpenStreetMapService mapService})
+      : _mapService = mapService,
+        super(MapInitial());
 
   Future<void> getDirections(LatLng start, LatLng end) async {
     emit(MapLoading());

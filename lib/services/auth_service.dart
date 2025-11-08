@@ -2,8 +2,11 @@ import 'package:firebase_auth/firebase_auth.dart' ;
 import 'package:firebase_database/firebase_database.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final DatabaseReference _database = FirebaseDatabase.instance.ref();
+  final FirebaseAuth _auth ;
+  final DatabaseReference  _database;
+  AuthService({required FirebaseAuth auth, required DatabaseReference database})
+      : _auth = auth,
+        _database = database;
 
   User? get currentUser => _auth.currentUser;
 
@@ -18,8 +21,7 @@ Future<UserCredential> signUp({required String email, required String password, 
     await _database.child('users').child(uid).set({
 
       'email': email,
-      'password': password,
-      'confirmPassword': confirmPassword,
+      
       'role': role,
       'name': name,
       'phone': phone,
