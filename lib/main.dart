@@ -53,31 +53,7 @@ Future<void> main() async {
       print('Stack trace: $stack');
     });
   }
-//   WidgetsFlutterBinding.ensureInitialized();
-//   await dotenv.load(fileName: ".env");
-//   await _initializeFirebase();
-//   setupDependencies();
-//   runApp(RideSharingApp());
-// }
-// Future<void> _initializeFirebase() async {
-//   try {
-//     await Firebase.initializeApp(
-//       options: DefaultFirebaseOptions.currentPlatform,
-//     );
-//   } catch (e, stackTrace) {
-//     print('Firebase initialization failed: $e');
-//     print('Stack trace: $stackTrace');
-    
-//     runApp(MaterialApp(
-//       home: Scaffold(
-//         body: Center(
-//           child: Text('Failed to initialize app. Please try again.'),
-//         ),
-//       ),
-//     ));
-//     return;
-//   }
-// }
+
 class RideSharingApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -94,14 +70,14 @@ class RideSharingApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Ride Sharing App',
         debugShowCheckedModeBanner: false,
-        // theme: ThemeData(
-        //   colorScheme: ColorScheme.fromSwatch().copyWith(
-        //     primary: Colors.blue,
-        //     secondary: Colors.green,
-        //   ),
-        //   primarySwatch: Colors.blue,
-        //   visualDensity: VisualDensity.adaptivePlatformDensity,
-        // ),
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSwatch().copyWith(
+            primary: Colors.blue,
+            secondary: Colors.green,
+          ),
+          primarySwatch: Colors.blue,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+        ),
         home: BlocListener<AuthCubit, AuthState>(
           listener: (context, state) {
             if (state is AuthAuthenticated) {final userId = state.user.id;
