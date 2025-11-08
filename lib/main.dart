@@ -156,7 +156,6 @@ class ErrorApp extends StatelessWidget {
                 SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () {
-                    // Restart app
                   },
                   child: Text('Retry'),
                 ),

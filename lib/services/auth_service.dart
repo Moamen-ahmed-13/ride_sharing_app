@@ -1,37 +1,49 @@
-import 'package:firebase_auth/firebase_auth.dart' ;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:ride_sharing_app/utils/constants/database_paths.dart';
 
 class AuthService {
-  final FirebaseAuth _auth ;
-  final DatabaseReference  _database;
+  final FirebaseAuth _auth;
+  final DatabaseReference _database;
   AuthService({required FirebaseAuth auth, required DatabaseReference database})
-      : _auth = auth,
-        _database = database;
+    : _auth = auth,
+      _database = database;
 
   User? get currentUser => _auth.currentUser;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-Future<UserCredential> signUp({required String email, required String password, required String confirmPassword, required String role, required String name, required String phone, String? vehicleType, String? vehicleNumber, String? licenseNumber}) async {
+  Future<UserCredential> signUp({
+    required String email,
+    required String password,
+    required String confirmPassword,
+    required String role,
+    required String name,
+    required String phone,
+    String? vehicleType,
+    String? vehicleNumber,
+    String? licenseNumber,
+  }) async {
     UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
-        final uid = userCredential.user!.uid;
-    await _database.child('users').child(uid).set({
-
+    final uid = userCredential.user!.uid;
+    await _database.child(DatabasePaths.user(uid)).set({
+      'id': uid,
       'email': email,
-      
       'role': role,
       'name': name,
       'phone': phone,
-      'vehicleType': vehicleType, 
-      'vehicleNumber': vehicleNumber, 
-      'licenseNumber': licenseNumber,
+      if (vehicleType != null) 'vehicleType': vehicleType,
+      if (vehicleNumber != null) 'vehicleNumber': vehicleNumber,
+      if (licenseNumber != null) 'licenseNumber': licenseNumber,
+      'createdAt': ServerValue.timestamp,
     });
 
     return userCredential;
   }
+
   Future<void> signIn(String email, String password) async {
     try {
       final credential = await _auth.signInWithEmailAndPassword(
@@ -44,7 +56,7 @@ Future<UserCredential> signUp({required String email, required String password, 
       }
 
       final snapshot = await _database
-          .child('users')
+          .child(DatabasePaths.users)
           .child(credential.user!.uid)
           .get();
 
@@ -90,7 +102,7 @@ Future<UserCredential> signUp({required String email, required String password, 
     try {
       final uid = currentUser?.uid;
       if (uid != null) {
-        await _database.child('users').child(uid).remove();
+        await _database.child(DatabasePaths.user(uid)).remove();
         await currentUser?.delete();
       }
     } on FirebaseAuthException catch (e) {

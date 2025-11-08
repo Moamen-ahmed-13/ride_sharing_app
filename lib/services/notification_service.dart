@@ -2,6 +2,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'dart:convert';
+
+import 'package:ride_sharing_app/utils/constants/database_paths.dart';
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('Handling background message: ${message.messageId}');
@@ -137,8 +139,8 @@ class NotificationService {
 
   Future<void> _saveFCMToken(String userId, String token) async {
     try {
-      await _db.child('users/$userId/fcmToken').set(token);
-      await _db.child('users/$userId/lastTokenUpdate').set(
+      await _db.child(DatabasePaths.userFcmToken(userId)).set(token);
+      await _db.child(DatabasePaths.userLastTokenUpdate(userId)).set(
         ServerValue.timestamp,
       );
     } catch (e) {
@@ -148,7 +150,7 @@ class NotificationService {
 
   Future<String?> getUserFCMToken(String userId) async {
     try {
-      final snapshot = await _db.child('users/$userId/fcmToken').get();
+      final snapshot = await _db.child(DatabasePaths.userFcmToken(userId)).get();
       if (snapshot.exists) {
         return snapshot.value as String;
       }
@@ -195,7 +197,7 @@ class NotificationService {
     required Map<String, dynamic> data,
   }) async {
     try {
-      final notificationRef = _db.child('notifications/$userId').push();
+      final notificationRef = _db.child(DatabasePaths.userNotifications(userId)).push();
       await notificationRef.set({
         'title': title,
         'body': body,
@@ -270,7 +272,7 @@ class NotificationService {
   }
   Future<void> markNotificationAsRead(String userId, String notificationId) async {
     try {
-      await _db.child('notifications/$userId/$notificationId/read').set(true);
+      await _db.child(DatabasePaths.notification(userId, notificationId)).set(true);
     } catch (e) {
       print('Error marking notification as read: $e');
     }
@@ -279,7 +281,7 @@ class NotificationService {
   Future<int> getUnreadNotificationCount(String userId) async {
     try {
       final snapshot = await _db
-          .child('notifications/$userId')
+          .child(DatabasePaths.userNotifications(userId))
           .orderByChild('read')
           .equalTo(false)
           .get();
@@ -296,7 +298,7 @@ class NotificationService {
 
   Future<void> clearAllNotifications(String userId) async {
     try {
-      await _db.child('notifications/$userId').remove();
+      await _db.child(DatabasePaths.userNotifications(userId)).remove();
     } catch (e) {
       print('Error clearing notifications: $e');
     }

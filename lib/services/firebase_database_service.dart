@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:ride_sharing_app/models/ride_model.dart';
 import 'package:ride_sharing_app/models/user_model.dart';
+import 'package:ride_sharing_app/utils/constants/database_paths.dart';
 
 class DatabaseService {
   final DatabaseReference _database;
@@ -11,7 +12,7 @@ class DatabaseService {
 
   Future<void> updateUserRole(String uid, String role) async {
     try {
-      await _database.child('users/$uid/role').set(role);
+      await _database.child(DatabasePaths.userRole(uid)).set(role);
     } catch (e) {
       print('Error updating user role: $e');
       rethrow;
@@ -20,7 +21,7 @@ class DatabaseService {
 
   Future<void> updateUserLocation(String uid, double lat, double lng) async {
     try {
-      await _database.child('users/$uid').update({
+      await _database.child(DatabasePaths.user(uid)).update({
         'lat': lat,
         'lng': lng,
         'lastUpdated': ServerValue.timestamp,
@@ -33,7 +34,7 @@ class DatabaseService {
 
   Future<User?> getUser(String uid) async {
     try {
-      final snapshot = await _database.child('users/$uid').get();
+      final snapshot = await _database.child(DatabasePaths.user(uid)).get();
 
       if (!snapshot.exists || snapshot.value == null) {
         return null;
@@ -54,7 +55,7 @@ class DatabaseService {
   }
 
   Stream<User?> getUserStream(String uid) {
-    return _database.child('users/$uid').onValue.map((event) {
+    return _database.child(DatabasePaths.user(uid)).onValue.map((event) {
       try {
         if (!event.snapshot.exists || event.snapshot.value == null) {
           return null;
@@ -80,7 +81,7 @@ class DatabaseService {
 
   Future<void> createRide(Ride ride) async {
     try {
-      await _database.child('rides/${ride.id}').set(ride.toMap());
+      await _database.child(DatabasePaths.ride(ride.id)).set(ride.toMap());
     } catch (e) {
       print('Error creating ride: $e');
       rethrow;
@@ -88,7 +89,7 @@ class DatabaseService {
   }
 
   Stream<Ride?> getRideStream(String rideId) {
-    return _database.child('rides/$rideId').onValue.map((event) {
+    return _database.child(DatabasePaths.ride(rideId)).onValue.map((event) {
       try {
         if (!event.snapshot.exists || event.snapshot.value == null) {
           print('⚠️ Ride stream: null data for $rideId');
@@ -117,7 +118,7 @@ class DatabaseService {
     double lng,
     double radiusKm,
   ) {
-    return _database.child('rides').onValue.map((event) {
+    return _database.child(DatabasePaths.rides).onValue.map((event) {
       final List<Ride> rides = [];
 
       try {
@@ -176,7 +177,7 @@ class DatabaseService {
         update['driverId'] = driverId;
       }
 
-      await _database.child('rides/$rideId').update(update);
+      await _database.child(DatabasePaths.ride(rideId)).update(update);
     } catch (e) {
       print('Error updating ride status: $e');
       rethrow;
@@ -189,7 +190,7 @@ class DatabaseService {
     double lng,
   ) async {
     try {
-      await _database.child('rides/$rideId').update({
+      await _database.child(DatabasePaths.ride(rideId)).update({
         'driverCurrentLat': lat,
         'driverCurrentLng': lng,
         'lastLocationUpdate': ServerValue.timestamp,
@@ -205,7 +206,7 @@ class DatabaseService {
     try {
       final String field = role == 'rider' ? 'riderId' : 'driverId';
       final snapshot = await _database
-          .child('rides')
+          .child(DatabasePaths.rides)
           .orderByChild(field)
           .equalTo(userId)
           .get();

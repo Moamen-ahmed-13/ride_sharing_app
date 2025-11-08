@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ride_sharing_app/cubits/auth/auth_cubit.dart';
 import 'package:ride_sharing_app/cubits/auth/auth_state.dart';
 import 'package:ride_sharing_app/cubits/notification/notification_cubit.dart';
 import 'package:ride_sharing_app/models/notification_item_model.dart';
+import 'package:ride_sharing_app/utils/constants/database_paths.dart';
 import 'package:ride_sharing_app/utils/widgets/notification_card.dart';
 
 class NotificationCenterScreen extends StatefulWidget {
@@ -31,7 +31,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       final authState = context.read<AuthCubit>().state;
       if (authState is AuthAuthenticated) {
         final snapshot = await _db
-            .child('notifications/${authState.user.id}')
+            .child(DatabasePaths.userNotifications(authState.user.id))   
             .orderByChild('timestamp')
             .limitToLast(50)
             .get();

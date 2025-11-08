@@ -4,6 +4,7 @@ import 'package:ride_sharing_app/cubits/auth/auth_cubit.dart';
 import 'package:ride_sharing_app/cubits/auth/auth_state.dart';
 import 'package:ride_sharing_app/screens/driver/driver_home_screen.dart';
 import 'package:ride_sharing_app/screens/rider/rider_home_screen.dart';
+import 'package:ride_sharing_app/utils/validators.dart';
 
 class AuthScreen extends StatefulWidget {
   @override
@@ -55,72 +56,38 @@ class _AuthScreenState extends State<AuthScreen>
     super.dispose();
   }
 
-  String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter your email';
-    }
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-      return 'Please enter a valid email';
-    }
-    return null;
-  }
+// In _AuthScreenState
+String? _validateEmail(String? value) {
+  return Validators.validateEmail(value);
+}
 
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter your password';
-    }
-    if (value.length < 6) {
-      return 'Password must be at least 6 characters';
-    }
-    return null;
-  }
+String? _validatePassword(String? value) {
+  return Validators.validatePassword(value);
+}
 
-  String? _validateConfirmPassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please confirm your password';
-    }
-    if (value != _passwordController.text) {
-      return 'Passwords do not match';
-    }
-    return null;
-  }
+String? _validateConfirmPassword(String? value) {
+  return Validators.validateConfirmPassword(value, _passwordController.text);
+}
 
-  String? _validateName(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter your name';
-    }
-    return null;
-  }
+String? _validateName(String? value) {
+  return Validators.validateName(value);
+}
 
-  String? _validatePhone(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter your phone number';
-    }
-    return null;
-  }
+String? _validatePhone(String? value) {
+  return Validators.validatePhone(value);
+}
 
-  String? _validateVehicleType(String? value) {
-    if (_role == 'driver' && (value == null || value.isEmpty)) {
-      return 'Please enter vehicle type';
-    }
-    return null;
-  }
+String? _validateVehicleType(String? value) {
+  return Validators.validateVehicleType(value);
+}
 
-  String? _validateVehicleNumber(String? value) {
-    if (_role == 'driver' && (value == null || value.isEmpty)) {
-      return 'Please enter vehicle number';
-    }
-    return null;
-  }
+String? _validateVehicleNumber(String? value) {
+  return Validators.validateVehicleNumber(value);
+}
 
-  String? _validateLicenseNumber(String? value) {
-    if (_role == 'driver' && (value == null || value.isEmpty)) {
-      return 'Please enter license number';
-    }
-    return null;
-  }
-
-  void _handleSubmit() {
+String? _validateLicenseNumber(String? value) {
+  return Validators.validateLicenseNumber(value);
+}  void _handleSubmit() {
     if (_formKey.currentState!.validate()) {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
