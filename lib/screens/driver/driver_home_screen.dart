@@ -8,6 +8,8 @@ import 'package:ride_sharing_app/cubits/auth/auth_cubit.dart';
 import 'package:ride_sharing_app/cubits/auth/auth_state.dart';
 import 'package:ride_sharing_app/cubits/location/location_cubit.dart';
 import 'package:ride_sharing_app/cubits/location/location_state.dart';
+import 'package:ride_sharing_app/cubits/map/map_cubit.dart';
+import 'package:ride_sharing_app/cubits/map/map_state.dart';
 import 'package:ride_sharing_app/cubits/ride/ride_cubit.dart';
 import 'package:ride_sharing_app/cubits/ride/ride_state.dart';
 import 'package:ride_sharing_app/models/ride_model.dart';
@@ -39,6 +41,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   DateTime? _lastNotificationTime;
   final Duration _notificationCooldown = Duration(seconds: 3);
   Set<String> _shownRideIds = {};
+  List<LatLng> _routeToPickup = [];
+  List<LatLng> _routeToDestination = [];
+  bool _isLoadingRoute = false;
+
   @override
   void initState() {
     super.initState();
@@ -146,11 +152,47 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         print(
           '📍 Updated driver location: ${_currentLocation!.latitude}, ${_currentLocation!.longitude}',
         );
+        if (_activeRide!.status == 'accepted') {
+          _loadRouteToPickup();
+        }
       } else {
         print('⚠️ No active ride or location, stopping tracker');
         _stopActiveRideLocationTracking();
       }
     });
+  }
+
+  Future<void> _loadRouteToPickup() async {
+    if (_currentLocation == null || _activeRide == null) return;
+
+    setState(() => _isLoadingRoute = true);
+
+    try {
+      final pickup = LatLng(_activeRide!.startLat, _activeRide!.startLng);
+      await context.read<MapCubit>().getDirections(_currentLocation!, pickup);
+    } catch (e) {
+      print('Error loading route to pickup: $e');
+    } finally {
+      setState(() => _isLoadingRoute = false);
+    }
+  }
+
+  Future<void> _loadRouteToDestination() async {
+    if (_currentLocation == null || _activeRide == null) return;
+
+    setState(() => _isLoadingRoute = true);
+
+    try {
+      final destination = LatLng(_activeRide!.endLat, _activeRide!.endLng);
+      await context.read<MapCubit>().getDirections(
+        _currentLocation!,
+        destination,
+      );
+    } catch (e) {
+      print('Error loading route to destination: $e');
+    } finally {
+      setState(() => _isLoadingRoute = false);
+    }
   }
 
   void _stopActiveRideLocationTracking() {
@@ -195,6 +237,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     setState(() {
       _activeRide = null;
       _isOnline = true;
+      _routeToPickup = [];
+      _routeToDestination = [];
     });
     _shownRideIds.clear();
     if (_currentLocation != null) {
@@ -261,7 +305,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           _isOnline = false;
         });
         _startActiveRideLocationTracking();
-
+        await _loadRouteToPickup();
         context.read<RideCubitWithNotifications>().watchRide(ride.id);
 
         InAppNotificationBanner.show(
@@ -295,6 +339,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         ],
       ),
     );
+    setState(() {
+      _routeToPickup = [];
+    });
+    await _loadRouteToDestination();
 
     if (confirmed == true) {
       await context.read<RideCubitWithNotifications>().startRide(
@@ -499,6 +547,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             _buildMyLocationButton(),
             _appDrawer(),
             _trackMyLocation(),
+            if (_isLoadingRoute) _buildLoadingRouteIndicator(),
           ],
         ),
       ),
@@ -506,62 +555,142 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   }
 
   Widget _buildMap() {
-    return BlocBuilder<LocationCubit, LocationState>(
-      builder: (context, locationState) {
-        if (locationState is LocationLoaded) {
-          _currentLocation = LatLng(locationState.lat, locationState.lng);
+    return BlocListener<MapCubit, MapState>(
+      listener: (context, mapState) {
+        if (mapState is MapDirectionsLoaded) {
+          if (_activeRide != null) {
+            if (_activeRide!.status == 'accepted') {
+              setState(() => _routeToPickup = mapState.polyline);
+            } else if (_activeRide!.status == 'in_progress') {
+              setState(() => _routeToDestination = mapState.polyline);
+            }
+          }
         }
-
-        return FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(
-            initialCenter: _currentLocation ?? LatLng(0, 0),
-            initialZoom: 15.0,
-          ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              subdomains: ['a', 'b', 'c'],
-              additionalOptions: {
-                'attribution': '© OpenStreetMap contributors',
-              },
-            ),
-            MarkerLayer(
-              markers: [
-                if (_currentLocation != null)
-                  Marker(
-                    point: _currentLocation!,
-                    width: 40,
-                    height: 40,
-                    child: Icon(
-                      Icons.local_taxi,
-                      color: _isOnline ? Colors.green : Colors.black,
-                      size: 40,
-                    ),
-                  ),
-                if (_activeRide != null) ...[
-                  Marker(
-                    point: LatLng(_activeRide!.startLat, _activeRide!.startLng),
-                    width: 40,
-                    height: 40,
-                    child: Icon(
-                      Icons.location_on,
-                      color: Colors.green,
-                      size: 40,
-                    ),
-                  ),
-                  Marker(
-                    point: LatLng(_activeRide!.endLat, _activeRide!.endLng),
-                    width: 40,
-                    height: 40,
-                    child: Icon(Icons.flag, color: Colors.red, size: 40),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        );
       },
+      child: BlocBuilder<LocationCubit, LocationState>(
+        builder: (context, locationState) {
+          if (locationState is LocationLoaded) {
+            _currentLocation = LatLng(locationState.lat, locationState.lng);
+          }
+
+          return FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _currentLocation ?? LatLng(0, 0),
+              initialZoom: 15.0,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate:
+                    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                subdomains: ['a', 'b', 'c'],
+                additionalOptions: {
+                  'attribution': '© OpenStreetMap contributors',
+                },
+              ),
+
+              if (_routeToPickup.isNotEmpty)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: _routeToPickup,
+                      strokeWidth: 5.0,
+                      color: Colors.blue,
+                      borderStrokeWidth: 2.0,
+                      borderColor: Colors.blue.shade900,
+                    ),
+                  ],
+                ),
+
+              if (_routeToDestination.isNotEmpty)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: _routeToDestination,
+                      strokeWidth: 5.0,
+                      color: Colors.green,
+                      borderStrokeWidth: 2.0,
+                      borderColor: Colors.green.shade900,
+                    ),
+                  ],
+                ),
+
+              MarkerLayer(
+                markers: [
+                  if (_currentLocation != null)
+                    Marker(
+                      point: _currentLocation!,
+                      width: 40,
+                      height: 40,
+                      child: Icon(
+                        Icons.local_taxi,
+                        color: _isOnline ? Colors.green : Colors.black,
+                        size: 40,
+                      ),
+                    ),
+
+                  if (_activeRide != null) ...[
+                    Marker(
+                      point: LatLng(
+                        _activeRide!.startLat,
+                        _activeRide!.startLng,
+                      ),
+                      width: 40,
+                      height: 40,
+                      child: Icon(
+                        Icons.location_on,
+                        color: Colors.green,
+                        size: 40,
+                      ),
+                    ),
+                    Marker(
+                      point: LatLng(_activeRide!.endLat, _activeRide!.endLng),
+                      width: 40,
+                      height: 40,
+                      child: Icon(Icons.flag, color: Colors.red, size: 40),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildLoadingRouteIndicator() {
+    return Positioned(
+      top: 160,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Loading route...',
+                style: TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
